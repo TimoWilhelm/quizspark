@@ -25,11 +25,7 @@ export function HostEnd() {
   const players = useGameStore(s => s.gameState?.players);
   const top3 = players?.slice(0, 3) || [];
   // Reorder for visual podium: 2nd, 1st, 3rd
-  const podiumOrder = [
-    top3.find((_, i) => i === 1), 
-    top3.find((_, i) => i === 0), 
-    top3.find((_, i) => i === 2)
-  ].filter(Boolean) as Player[];
+  const podiumOrder = [top3[1], top3[0], top3[2]];
   return (
     <div className="flex-grow flex flex-col items-center justify-center p-4 sm:p-8 space-y-8">
       <motion.h1
