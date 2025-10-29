@@ -1,6 +1,6 @@
 import { DurableObject } from "cloudflare:workers";
-import type { GameState, Question, Player, Answer } from '@shared/types';
-const MOCK_QUESTIONS: Question[] = [
+import type { GameState, Question, Player, Answer, QuizTopic } from '@shared/types';
+const GENERAL_KNOWLEDGE_QUIZ: Question[] = [
   {
     text: "What is the capital of France?",
     options: ["Berlin", "Madrid", "Paris", "Rome"],
@@ -22,17 +22,62 @@ const MOCK_QUESTIONS: Question[] = [
     correctAnswerIndex: 0,
   },
 ];
+const TECH_QUIZ: Question[] = [
+  {
+    text: "What does 'CPU' stand for?",
+    options: ["Central Processing Unit", "Computer Personal Unit", "Central Processor Unit", "Control Processing Unit"],
+    correctAnswerIndex: 0,
+  },
+  {
+    text: "Which company developed the JavaScript programming language?",
+    options: ["Microsoft", "Apple", "Netscape", "Sun Microsystems"],
+    correctAnswerIndex: 2,
+  },
+  {
+    text: "What is the main function of a DNS server?",
+    options: ["To store websites", "To resolve domain names to IP addresses", "To send emails", "To secure network connections"],
+    correctAnswerIndex: 1,
+  },
+];
+const GEOGRAPHY_QUIZ: Question[] = [
+  {
+    text: "What is the longest river in the world?",
+    options: ["Amazon River", "Nile River", "Yangtze River", "Mississippi River"],
+    correctAnswerIndex: 1,
+  },
+  {
+    text: "Which desert is the largest in the world?",
+    options: ["Sahara Desert", "Arabian Desert", "Gobi Desert", "Antarctic Polar Desert"],
+    correctAnswerIndex: 3,
+  },
+  {
+    text: "What is the capital of Australia?",
+    options: ["Sydney", "Melbourne", "Canberra", "Perth"],
+    correctAnswerIndex: 2,
+  },
+];
+const QUIZZES: Record<string, Question[]> = {
+  'general': GENERAL_KNOWLEDGE_QUIZ,
+  'tech': TECH_QUIZ,
+  'geo': GEOGRAPHY_QUIZ,
+};
+export const QUIZ_TOPICS: QuizTopic[] = [
+  { id: 'general', title: 'General Knowledge' },
+  { id: 'tech', title: 'Tech Trivia' },
+  { id: 'geo', title: 'World Geography' },
+];
 const QUESTION_TIME_LIMIT_MS = 20000;
 export class GlobalDurableObject extends DurableObject {
-  async createGame(): Promise<GameState> {
+  async createGame(quizId?: string): Promise<GameState> {
     const gameId = crypto.randomUUID();
     const pin = Math.floor(100000 + Math.random() * 900000).toString();
+    const questions = QUIZZES[quizId || 'general'] || GENERAL_KNOWLEDGE_QUIZ;
     const newGame: GameState = {
       id: gameId,
       pin,
       phase: 'LOBBY',
       players: [],
-      questions: MOCK_QUESTIONS,
+      questions: questions,
       currentQuestionIndex: 0,
       questionStartTime: 0,
       answers: [],
@@ -49,7 +94,7 @@ export class GlobalDurableObject extends DurableObject {
     if (!state || state.phase !== 'LOBBY') {
       return { error: 'Game not in LOBBY phase or does not exist.' };
     }
-    if (state.players.some(p => p.name === name)) {
+    if (state.players.some(p => p.name.toLowerCase() === name.toLowerCase())) {
       return { error: 'Player name already taken.' };
     }
     const newPlayer: Player = { id: playerId, name, score: 0, answered: false };

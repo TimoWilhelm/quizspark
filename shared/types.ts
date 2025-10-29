@@ -32,3 +32,7 @@ export interface GameState {
   questionStartTime: number; // Unix timestamp in ms
   answers: Answer[];
 }
+export interface QuizTopic {
+  id: string;
+  title: string;
+}

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useGameStore } from '@/lib/game-store';
 import { useGamePolling } from '@/hooks/useGamePolling';
@@ -8,6 +8,16 @@ import { AnimatePresence } from 'framer-motion';
 import { PlayerNicknameForm } from '@/components/game/player/PlayerNicknameForm';
 import { PlayerAnswerScreen } from '@/components/game/player/PlayerAnswerScreen';
 import { PlayerWaitingScreen } from '@/components/game/player/PlayerWaitingScreen';
+import { useSound } from '@/hooks/useSound';
+// Fisher-Yates shuffle algorithm
+const shuffleArray = (array: number[]) => {
+  const newArray = [...array];
+  for (let i = newArray.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [newArray[i], newArray[j]] = [newArray[j], newArray[i]];
+  }
+  return newArray;
+};
 export function PlayerPage() {
   const navigate = useNavigate();
   const gamePin = useGameStore(s => s.gamePin);
@@ -19,6 +29,8 @@ export function PlayerPage() {
   const [isJoined, setIsJoined] = useState(false);
   const [submittedAnswer, setSubmittedAnswer] = useState<number | null>(null);
   const [answerResult, setAnswerResult] = useState<{ isCorrect: boolean; score: number } | null>(null);
+  const [shuffledIndices, setShuffledIndices] = useState<number[]>([]);
+  const { playSound } = useSound();
   useEffect(() => {
     if (!gamePin) {
       navigate('/join');
@@ -28,18 +40,24 @@ export function PlayerPage() {
     }
   }, [gamePin, playerId, navigate, setPlayerId]);
   const { isLoading, error, gameState } = useGamePolling(gamePin, isJoined);
+  const currentQuestionIndex = gameState?.currentQuestionIndex;
+  const questionOptionsCount = gameState?.questions[currentQuestionIndex ?? -1]?.options.length;
   useEffect(() => {
-    if (gameState?.phase === 'QUESTION') {
+    if (gameState?.phase === 'QUESTION' && questionOptionsCount) {
       setSubmittedAnswer(null);
       setAnswerResult(null);
+      const initialIndices = Array.from({ length: questionOptionsCount }, (_, i) => i);
+      setShuffledIndices(shuffleArray(initialIndices));
     }
     if (gameState?.phase === 'REVEAL' && submittedAnswer !== null) {
       const myAnswer = gameState.answers.find(a => a.playerId === playerId && a.answerIndex === submittedAnswer);
-      if (myAnswer) {
-        setAnswerResult({ isCorrect: myAnswer.isCorrect, score: myAnswer.score });
+      if (myAnswer && !answerResult) { // Only set result once
+        const result = { isCorrect: myAnswer.isCorrect, score: myAnswer.score };
+        setAnswerResult(result);
+        playSound(result.isCorrect ? 'correct' : 'incorrect');
       }
     }
-  }, [gameState?.phase, gameState?.answers, playerId, submittedAnswer]);
+  }, [gameState?.phase, currentQuestionIndex, questionOptionsCount, gameState?.answers, playerId, submittedAnswer, playSound, answerResult]);
   const handleJoin = async (name: string) => {
     if (!name.trim() || !playerId || !gamePin) return;
     setIsJoining(true);
@@ -55,6 +73,7 @@ export function PlayerPage() {
       setGameState(data.data);
       setIsJoined(true);
       toast.success(`Welcome, ${name}!`);
+      playSound('join');
     } catch (err: any) {
       toast.error(err.message);
       setIsJoining(false);
@@ -88,13 +107,12 @@ export function PlayerPage() {
     if (isLoading && !gameState) return <Loader2 className="h-16 w-16 animate-spin text-white" />;
     if (error) return <div className="text-red-300">{error}</div>;
     if (!gameState) return <div>Waiting for game...</div>;
-    if (gameState.phase === 'QUESTION') {
-      const question = gameState.questions[gameState.currentQuestionIndex];
+    if (gameState.phase === 'QUESTION' && shuffledIndices.length > 0) {
       return (
         <PlayerAnswerScreen
           onAnswer={handleAnswer}
           submittedAnswer={submittedAnswer}
-          answerCount={question.options.length}
+          shuffledIndices={shuffledIndices}
         />
       );
     }
