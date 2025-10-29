@@ -15,18 +15,19 @@ const questionSchema = z.object({
   text: z.string().min(1, 'Question text is required.'),
   options: z.array(z.string().min(1, 'Option text is required.')).min(2).max(4),
   correctAnswerIndex: z.string({
-    invalid_type_error: "A correct answer must be selected.",
+    required_error: "A correct answer must be selected.",
   }).transform(val => parseInt(val, 10)),
 });
 const quizSchema = z.object({
   title: z.string().min(1, 'Quiz title is required.'),
   questions: z.array(questionSchema).min(1, 'A quiz must have at least one question.'),
 });
-type QuizFormData = z.infer<typeof quizSchema>;
+type QuizFormInput = z.input<typeof quizSchema>;
+type QuizFormData = z.output<typeof quizSchema>;
 export function QuizEditorPage() {
   const { quizId } = useParams<{ quizId?: string }>();
   const navigate = useNavigate();
-  const { register, control, handleSubmit, reset, formState: { errors, isSubmitting } } = useForm<QuizFormData>({
+  const { register, control, handleSubmit, reset, formState: { errors, isSubmitting } } = useForm<QuizFormInput>({
     resolver: zodResolver(quizSchema),
     defaultValues: { title: '', questions: [] },
   });
@@ -39,7 +40,7 @@ export function QuizEditorPage() {
           const result = await response.json() as ApiResponse<Quiz>;
           if (result.success && result.data) {
             // Transform correctAnswerIndex to string for the form
-            const formData = {
+            const formData: QuizFormInput = {
               ...result.data,
               questions: result.data.questions.map(q => ({
                 ...q,
@@ -91,7 +92,7 @@ export function QuizEditorPage() {
     const currentOptions = fields[qIndex].options;
     if (currentOptions.length > 2) {
       const newOptions = currentOptions.filter((_, i) => i !== oIndex);
-      const currentCorrect = parseInt(fields[qIndex].correctAnswerIndex, 10);
+      const currentCorrect = parseInt(fields[qIndex].correctAnswerIndex!, 10);
       const newCorrect = currentCorrect >= oIndex ? Math.max(0, currentCorrect - 1) : currentCorrect;
       update(qIndex, { ...fields[qIndex], options: newOptions, correctAnswerIndex: String(newCorrect) });
     }

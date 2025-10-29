@@ -21,8 +21,21 @@ export function HostReveal({ onNext }: { onNext: () => void }) {
             <motion.div
               key={i}
               initial={{ opacity: 0, x: -50 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ delay: i * 0.2 }}
+              animate={{
+                opacity: 1,
+                x: 0,
+                scale: isCorrect ? [1, 1.03, 1] : 1,
+              }}
+              transition={{
+                delay: i * 0.2,
+                ...(isCorrect && {
+                  scale: {
+                    repeat: Infinity,
+                    duration: 1.5,
+                    ease: "easeInOut"
+                  }
+                })
+              }}
               className={`p-4 rounded-lg shadow-md relative overflow-hidden ${isCorrect ? 'bg-green-100 border-2 border-green-500' : 'bg-white'}`}
             >
               <motion.div
