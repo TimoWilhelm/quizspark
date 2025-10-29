@@ -1,4 +1,5 @@
 import { motion } from 'framer-motion';
+import { cn } from '@/lib/utils';
 const shapeColors = [
   'bg-quiz-red',    // Triangle
   'bg-quiz-blue',   // Diamond
@@ -33,7 +34,12 @@ export function PlayerAnswerScreen({ onAnswer, submittedAnswer, optionIndices }:
           key={originalIndex}
           onClick={() => onAnswer(originalIndex)}
           disabled={submittedAnswer !== null}
-          className={`rounded-2xl flex items-center justify-center shadow-lg transition-all duration-200 ${shapeColors[originalIndex]} ${submittedAnswer !== null ? '' : 'hover:scale-105'}`}
+          className={cn(
+            'rounded-2xl flex items-center justify-center shadow-lg transition-all duration-200',
+            shapeColors[originalIndex],
+            submittedAnswer === null ? 'hover:scale-105' : '',
+            submittedAnswer === originalIndex && 'ring-4 ring-white ring-offset-4 ring-offset-slate-800'
+          )}
           whileTap={{ scale: 0.9 }}
           initial={{ opacity: 0, scale: 0.5 }}
           animate={{ opacity: 1, scale: 1 }}

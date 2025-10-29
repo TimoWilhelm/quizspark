@@ -24,12 +24,11 @@ export function HostLobby({ onStart }: { onStart: () => void }) {
               <CardTitle>Scan to Join</CardTitle>
             </CardHeader>
             <CardContent className="p-0">
-              <QRCode value={joinUrl} />
+              <QRCode value={joinUrl} size={256} />
               <p className="mt-4 text-xs sm:text-sm text-muted-foreground break-all">{joinUrl}</p>
             </CardContent>
           </Card>
         </motion.div>
-
       </div>
       <motion.div
         initial={{ opacity: 0, y: 20 }}
