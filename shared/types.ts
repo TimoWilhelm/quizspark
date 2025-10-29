@@ -35,4 +35,10 @@ export interface GameState {
 export interface QuizTopic {
   id: string;
   title: string;
+  type: 'predefined' | 'custom';
+}
+export interface Quiz {
+  id: string;
+  title: string;
+  questions: Question[];
 }

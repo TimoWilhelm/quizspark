@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
-import { useParams, useNavigate, Link } from 'react-router-dom';
-import { useForm, useFieldArray, Controller, SubmitHandler } from 'react-hook-form';
+import { useParams, useNavigate } from 'react-router-dom';
+import { useForm, useFieldArray, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Button } from '@/components/ui/button';
@@ -8,28 +8,23 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
-import { PlusCircle, Trash2, Loader2, Save, ArrowLeft } from 'lucide-react';
+import { PlusCircle, Trash2, Loader2, Save } from 'lucide-react';
 import { Toaster, toast } from 'sonner';
 import type { ApiResponse, Quiz } from '@shared/types';
 const questionSchema = z.object({
   text: z.string().min(1, 'Question text is required.'),
   options: z.array(z.string().min(1, 'Option text is required.')).min(2).max(4),
-  correctAnswerIndex: z.string().min(1, "A correct answer must be selected."),
+  correctAnswerIndex: z.coerce.number().min(0),
 });
 const quizSchema = z.object({
   title: z.string().min(1, 'Quiz title is required.'),
   questions: z.array(questionSchema).min(1, 'A quiz must have at least one question.'),
 });
-type QuizFormInput = z.input<typeof quizSchema>;
-type QuizFormData = Omit<QuizFormInput, 'questions'> & {
-  questions: (Omit<z.input<typeof questionSchema>, 'correctAnswerIndex'> & {
-    correctAnswerIndex: number;
-  })[];
-};
+type QuizFormData = z.infer<typeof quizSchema>;
 export function QuizEditorPage() {
   const { quizId } = useParams<{ quizId?: string }>();
   const navigate = useNavigate();
-  const { register, control, handleSubmit, reset, getValues, formState: { errors, isSubmitting } } = useForm<QuizFormInput>({
+  const { register, control, handleSubmit, reset, formState: { errors, isSubmitting } } = useForm<QuizFormData>({
     resolver: zodResolver(quizSchema),
     defaultValues: { title: '', questions: [] },
   });
@@ -41,14 +36,7 @@ export function QuizEditorPage() {
           const response = await fetch(`/api/quizzes/custom/${quizId}`);
           const result = await response.json() as ApiResponse<Quiz>;
           if (result.success && result.data) {
-            const formData: QuizFormInput = {
-              ...result.data,
-              questions: result.data.questions.map(q => ({
-                ...q,
-                correctAnswerIndex: String(q.correctAnswerIndex),
-              })),
-            };
-            reset(formData);
+            reset(result.data);
           } else {
             throw new Error(result.error || 'Failed to fetch quiz');
           }
@@ -59,24 +47,18 @@ export function QuizEditorPage() {
       };
       fetchQuiz();
     } else {
-      reset({ title: '', questions: [{ text: '', options: ['', ''], correctAnswerIndex: '0' }] });
+      // Start a new quiz with one empty question
+      reset({ title: '', questions: [{ text: '', options: ['', ''], correctAnswerIndex: 0 }] });
     }
   }, [quizId, reset, navigate]);
-  const onSubmit: SubmitHandler<QuizFormInput> = async (data) => {
+  const onSubmit = async (data: QuizFormData) => {
     try {
-      const processedData: QuizFormData = {
-        ...data,
-        questions: data.questions.map(q => ({
-          ...q,
-          correctAnswerIndex: parseInt(q.correctAnswerIndex, 10),
-        })),
-      };
       const url = quizId ? `/api/quizzes/custom/${quizId}` : '/api/quizzes/custom';
       const method = quizId ? 'PUT' : 'POST';
       const response = await fetch(url, {
         method,
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...processedData, id: quizId }),
+        body: JSON.stringify({ ...data, id: quizId }),
       });
       const result = await response.json() as ApiResponse<Quiz>;
       if (!response.ok || !result.success) {
@@ -84,39 +66,24 @@ export function QuizEditorPage() {
       }
       toast.success(`Quiz "${result.data?.title}" saved successfully!`);
       navigate('/');
-    } catch (error) {
-      if (error instanceof Error) {
-        toast.error(error.message);
-      } else {
-        toast.error(String(error));
-      }
+    } catch (error: any) {
+      toast.error(error.message);
     }
   };
-  const addQuestion = () => append({ text: '', options: ['', ''], correctAnswerIndex: '0' });
+  const addQuestion = () => append({ text: '', options: ['', ''], correctAnswerIndex: 0 });
   const addOption = (qIndex: number) => {
-    const currentQuestion = getValues(`questions.${qIndex}`);
-    if (currentQuestion.options.length < 4) {
-      update(qIndex, {
-        ...currentQuestion,
-        options: [...currentQuestion.options, ''],
-      });
+    const currentOptions = fields[qIndex].options;
+    if (currentOptions.length < 4) {
+      update(qIndex, { ...fields[qIndex], options: [...currentOptions, ''] });
     }
   };
   const removeOption = (qIndex: number, oIndex: number) => {
-    const currentQuestion = getValues(`questions.${qIndex}`);
-    if (currentQuestion.options.length > 2) {
-      const newOptions = currentQuestion.options.filter((_, i) => i !== oIndex);
-      const currentCorrect = parseInt(currentQuestion.correctAnswerIndex, 10);
-      const newCorrect = currentCorrect === oIndex
-        ? 0 // If the deleted option was correct, default to the first option
-        : currentCorrect > oIndex
-          ? currentCorrect - 1 // If a preceding option was deleted, shift index down
-          : currentCorrect;
-      update(qIndex, {
-        ...currentQuestion,
-        options: newOptions,
-        correctAnswerIndex: String(newCorrect),
-      });
+    const currentOptions = fields[qIndex].options;
+    if (currentOptions.length > 2) {
+      const newOptions = currentOptions.filter((_, i) => i !== oIndex);
+      const currentCorrect = fields[qIndex].correctAnswerIndex;
+      const newCorrect = currentCorrect >= oIndex ? Math.max(0, currentCorrect - 1) : currentCorrect;
+      update(qIndex, { ...fields[qIndex], options: newOptions, correctAnswerIndex: newCorrect });
     }
   };
   return (
@@ -124,14 +91,7 @@ export function QuizEditorPage() {
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-8">
           <div className="flex justify-between items-center">
-            <div className="flex items-center gap-4">
-              <Link to="/">
-                <Button type="button" variant="outline" size="icon">
-                  <ArrowLeft className="h-5 w-5" />
-                </Button>
-              </Link>
-              <h1 className="text-2xl sm:text-4xl font-display font-bold">{quizId ? 'Edit Quiz' : 'Create a New Quiz'}</h1>
-            </div>
+            <h1 className="text-4xl font-display font-bold">{quizId ? 'Edit Quiz' : 'Create a New Quiz'}</h1>
             <Button type="submit" disabled={isSubmitting} size="lg" className="bg-quiz-blue hover:bg-quiz-blue/90">
               {isSubmitting ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : <Save className="mr-2 h-5 w-5" />}
               Save Quiz
@@ -168,11 +128,11 @@ export function QuizEditorPage() {
                     name={`questions.${qIndex}.correctAnswerIndex`}
                     render={({ field: { onChange, value } }) => (
                       <RadioGroup onValueChange={onChange} value={String(value)} className="space-y-2 mt-2">
-                        {getValues(`questions.${qIndex}.options`).map((_, oIndex) => (
-                          <div key={`${field.id}-option-${oIndex}`} className="flex items-center gap-2">
+                        {field.options.map((_, oIndex) => (
+                          <div key={oIndex} className="flex items-center gap-2">
                             <RadioGroupItem value={String(oIndex)} id={`q${qIndex}o${oIndex}`} />
                             <Input {...register(`questions.${qIndex}.options.${oIndex}`)} placeholder={`Option ${oIndex + 1}`} className="flex-grow" />
-                            {getValues(`questions.${qIndex}.options`).length > 2 && (
+                            {field.options.length > 2 && (
                               <Button type="button" variant="ghost" size="icon" onClick={() => removeOption(qIndex, oIndex)} className="text-muted-foreground hover:text-destructive">
                                 <Trash2 className="w-4 h-4" />
                               </Button>
@@ -183,9 +143,8 @@ export function QuizEditorPage() {
                     )}
                   />
                   {errors.questions?.[qIndex]?.options && <p className="text-red-500 text-sm mt-1">Each option must have text.</p>}
-                  {errors.questions?.[qIndex]?.correctAnswerIndex && <p className="text-red-500 text-sm mt-1">{errors.questions[qIndex]?.correctAnswerIndex?.message}</p>}
                 </div>
-                {getValues(`questions.${qIndex}.options`).length < 4 && (
+                {field.options.length < 4 && (
                   <Button type="button" variant="outline" onClick={() => addOption(qIndex)}>
                     <PlusCircle className="mr-2 h-4 w-4" /> Add Option
                   </Button>

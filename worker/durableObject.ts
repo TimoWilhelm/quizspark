@@ -1,5 +1,5 @@
 import { DurableObject } from "cloudflare:workers";
-import type { GameState, Question, Player, Answer, QuizTopic } from '@shared/types';
+import type { GameState, Question, Player, Answer, QuizTopic, Quiz } from '@shared/types';
 const GENERAL_KNOWLEDGE_QUIZ: Question[] = [
   {
     text: "What is the capital of France?",
@@ -62,16 +62,33 @@ const QUIZZES: Record<string, Question[]> = {
   'geo': GEOGRAPHY_QUIZ,
 };
 export const QUIZ_TOPICS: QuizTopic[] = [
-  { id: 'general', title: 'General Knowledge' },
-  { id: 'tech', title: 'Tech Trivia' },
-  { id: 'geo', title: 'World Geography' },
+  { id: 'general', title: 'General Knowledge', type: 'predefined' },
+  { id: 'tech', title: 'Tech Trivia', type: 'predefined' },
+  { id: 'geo', title: 'World Geography', type: 'predefined' },
 ];
 const QUESTION_TIME_LIMIT_MS = 20000;
 export class GlobalDurableObject extends DurableObject {
-  async createGame(quizId?: string): Promise<GameState> {
+  async createGame(quizId?: string): Promise<GameState | { error: string }> {
+    let questions: Question[] | undefined;
+    if (quizId) {
+      // Check custom quizzes first
+      const customQuiz = await this.getCustomQuizById(quizId);
+      if (customQuiz) {
+        questions = customQuiz.questions;
+      } else {
+        // Fallback to predefined quizzes
+        questions = QUIZZES[quizId];
+      }
+    }
+    // Default to general knowledge if no quizId or not found
+    if (!questions) {
+      questions = GENERAL_KNOWLEDGE_QUIZ;
+    }
+    if (questions.length === 0) {
+      return { error: "Cannot start a game with an empty quiz." };
+    }
     const gameId = crypto.randomUUID();
     const pin = Math.floor(100000 + Math.random() * 900000).toString();
-    const questions = QUIZZES[quizId || 'general'] || GENERAL_KNOWLEDGE_QUIZ;
     const newGame: GameState = {
       id: gameId,
       pin,
@@ -168,5 +185,44 @@ export class GlobalDurableObject extends DurableObject {
     }
     await this.ctx.storage.put('game_state', state);
     return state;
+  }
+  // --- Custom Quiz Methods ---
+  async getCustomQuizzes(): Promise<Quiz[]> {
+    return (await this.ctx.storage.get<Quiz[]>('custom_quizzes')) || [];
+  }
+  async getCustomQuizById(id: string): Promise<Quiz | null> {
+    const quizzes = await this.getCustomQuizzes();
+    return quizzes.find(q => q.id === id) || null;
+  }
+  async saveCustomQuiz(quizData: Omit<Quiz, 'id'> & { id?: string }): Promise<Quiz> {
+    const quizzes = await this.getCustomQuizzes();
+    if (quizData.id) {
+      // Update existing quiz
+      const index = quizzes.findIndex(q => q.id === quizData.id);
+      if (index > -1) {
+        quizzes[index] = { ...quizzes[index], ...quizData, id: quizData.id };
+      } else {
+        // If ID provided but not found, treat as new (or throw error)
+        const newQuiz = { ...quizData, id: crypto.randomUUID() };
+        quizzes.push(newQuiz);
+        return newQuiz;
+      }
+    } else {
+      // Create new quiz
+      const newQuiz = { ...quizData, id: crypto.randomUUID() };
+      quizzes.push(newQuiz);
+    }
+    await this.ctx.storage.put('custom_quizzes', quizzes);
+    return quizzes.find(q => q.id === quizData.id)! || quizzes[quizzes.length - 1];
+  }
+  async deleteCustomQuiz(id: string): Promise<{ success: boolean }> {
+    let quizzes = await this.getCustomQuizzes();
+    const initialLength = quizzes.length;
+    quizzes = quizzes.filter(q => q.id !== id);
+    if (quizzes.length < initialLength) {
+      await this.ctx.storage.put('custom_quizzes', quizzes);
+      return { success: true };
+    }
+    return { success: false };
   }
 }

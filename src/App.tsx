@@ -8,6 +8,7 @@ import { HomePage } from '@/pages/HomePage';
 import { HostPage } from '@/pages/HostPage';
 import { JoinPage } from '@/pages/JoinPage';
 import { PlayerPage } from '@/pages/PlayerPage';
+import { QuizEditorPage } from '@/pages/QuizEditorPage';
 const router = createBrowserRouter([
   {
     path: "/",
@@ -27,6 +28,11 @@ const router = createBrowserRouter([
   {
     path: "/play",
     element: <PlayerPage />,
+    errorElement: <RouteErrorBoundary />,
+  },
+  {
+    path: "/edit/:quizId?",
+    element: <QuizEditorPage />,
     errorElement: <RouteErrorBoundary />,
   },
 ]);
