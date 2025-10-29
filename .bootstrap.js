@@ -82,7 +82,9 @@ function runSetupCommands() {
     "bun install react-qr-code",
     "rm -rf src/pages/DemoPage.tsx",
     "rm -rf src/pages/DemoPage.tsx",
-    "rm -rf src/pages/JoinPage.tsx"
+    "rm -rf src/pages/JoinPage.tsx",
+    "rm -rf src/pages/DemoPage.tsx",
+    "rm -rf shared/mock-data.ts"
 ];
     
     if (commands.length === 0) {
