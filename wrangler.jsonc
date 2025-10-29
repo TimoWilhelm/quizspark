@@ -4,7 +4,7 @@
  */
  {
 	"$schema": "node_modules/wrangler/config-schema.json",
-	"name": "quizspark-6zhrimgstefqftzwf__v7",
+	"name": "quizspark",
 	"main": "worker/index.ts",
 	"compatibility_date": "2025-04-24",
 	"assets": {
