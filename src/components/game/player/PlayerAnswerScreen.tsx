@@ -1,5 +1,6 @@
 import { motion } from 'framer-motion';
 import { cn } from '@/lib/utils';
+import { useIsMobile } from '@/hooks/use-mobile';
 const shapeColors = [
   'bg-quiz-red',    // Triangle
   'bg-quiz-blue',   // Diamond
@@ -18,12 +19,14 @@ interface PlayerAnswerScreenProps {
   optionIndices: number[];
 }
 export function PlayerAnswerScreen({ onAnswer, submittedAnswer, optionIndices }: PlayerAnswerScreenProps) {
-  const buttonsToShow = submittedAnswer !== null
-    ? optionIndices.filter(originalIndex => originalIndex === submittedAnswer)
-    : optionIndices;
+  const isMobile = useIsMobile();
+  const buttonsToShow = optionIndices;
   return (
     <motion.div
-      className="grid grid-cols-2 gap-4 w-full h-full"
+      className={cn(
+        "grid gap-4 w-full h-full",
+        isMobile ? "grid-cols-1" : "grid-cols-2"
+      )}
       key="answer-screen"
       initial={{ opacity: 0, scale: 0.8 }}
       animate={{ opacity: 1, scale: 1 }}
@@ -38,6 +41,7 @@ export function PlayerAnswerScreen({ onAnswer, submittedAnswer, optionIndices }:
             'rounded-2xl flex items-center justify-center shadow-lg transition-all duration-200',
             shapeColors[originalIndex],
             submittedAnswer === null ? 'hover:scale-105' : '',
+            submittedAnswer !== null && submittedAnswer !== originalIndex && 'opacity-50',
             submittedAnswer === originalIndex && 'ring-4 ring-white ring-offset-4 ring-offset-slate-800'
           )}
           whileTap={{ scale: 0.9 }}
