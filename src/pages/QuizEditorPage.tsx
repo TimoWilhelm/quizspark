@@ -14,7 +14,10 @@ import type { ApiResponse, Quiz } from '@shared/types';
 const questionSchema = z.object({
   text: z.string().min(1, 'Question text is required.'),
   options: z.array(z.string().min(1, 'Option text is required.')).min(2).max(4),
-  correctAnswerIndex: z.preprocess((arg) => arg === '' ? null : Number(arg), z.number().int().min(0, 'A correct answer must be selected.')),
+  correctAnswerIndex: z.coerce.number({
+    required_error: "A correct answer must be selected.",
+    invalid_type_error: "A correct answer must be selected.",
+  }).int().min(0, 'A correct answer must be selected.'),
 });
 const quizSchema = z.object({
   title: z.string().min(1, 'Quiz title is required.'),
