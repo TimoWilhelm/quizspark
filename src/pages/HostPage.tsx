@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useCallback } from 'react';
 import { useParams } from 'react-router-dom';
 import { useGamePolling } from '@/hooks/useGamePolling';
 import { useGameStore } from '@/lib/game-store';
@@ -14,22 +14,22 @@ export function HostPage() {
   const { gameId } = useParams<{ gameId: string }>();
   const { isLoading, error } = useGamePolling(gameId!);
   const gameState = useGameStore(s => s.gameState);
-  const handleNext = async () => {
+  const handleNext = useCallback(async () => {
     try {
       const res = await fetch(`/api/games/${gameId}/next`, { method: 'POST' });
       if (!res.ok) throw new Error('Failed to advance game state');
     } catch (err) {
       toast.error('Could not proceed to the next step.');
     }
-  };
-  const handleStart = async () => {
+  }, [gameId]);
+  const handleStart = useCallback(async () => {
     try {
       const res = await fetch(`/api/games/${gameId}/start`, { method: 'POST' });
       if (!res.ok) throw new Error('Failed to start game');
     } catch (err) {
       toast.error('Could not start the game.');
     }
-  };
+  }, [gameId]);
   if (isLoading && !gameState) {
     return (
       <div className="min-h-screen w-full flex items-center justify-center bg-slate-100">
