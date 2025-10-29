@@ -14,12 +14,12 @@ const shapePaths = [
 interface PlayerAnswerScreenProps {
   onAnswer: (index: number) => void;
   submittedAnswer: number | null;
-  shuffledIndices: number[];
+  optionIndices: number[];
 }
-export function PlayerAnswerScreen({ onAnswer, submittedAnswer, shuffledIndices }: PlayerAnswerScreenProps) {
+export function PlayerAnswerScreen({ onAnswer, submittedAnswer, optionIndices }: PlayerAnswerScreenProps) {
   const buttonsToShow = submittedAnswer !== null
-    ? shuffledIndices.filter(originalIndex => originalIndex === submittedAnswer)
-    : shuffledIndices;
+    ? optionIndices.filter(originalIndex => originalIndex === submittedAnswer)
+    : optionIndices;
   return (
     <motion.div
       className="grid grid-cols-2 gap-4 w-full h-full"

@@ -135,8 +135,12 @@ export class GlobalDurableObject extends DurableObject {
       return { error: 'Not in QUESTION phase.' };
     }
     const player = state.players.find(p => p.id === playerId);
-    if (!player || player.answered) {
-      return { error: 'Player not found or has already answered.' };
+    if (!player) {
+      return { error: 'Player not found.' };
+    }
+    // Check if player has already answered THIS question.
+    if (state.answers.some(a => a.playerId === playerId)) {
+      return { error: 'Player has already answered.' };
     }
     const timeTaken = Date.now() - state.questionStartTime;
     if (timeTaken > QUESTION_TIME_LIMIT_MS) {
@@ -150,7 +154,6 @@ export class GlobalDurableObject extends DurableObject {
       score = Math.floor(1000 * timeFactor);
     }
     player.score += score;
-    player.answered = true;
     const answer: Answer = { playerId, answerIndex, time: timeTaken, isCorrect, score };
     state.answers.push(answer);
     await this.ctx.storage.put('game_state', state);
@@ -175,7 +178,6 @@ export class GlobalDurableObject extends DurableObject {
           state.phase = 'QUESTION';
           state.questionStartTime = Date.now();
           state.answers = [];
-          state.players.forEach(p => p.answered = false);
         } else {
           state.phase = 'END';
         }

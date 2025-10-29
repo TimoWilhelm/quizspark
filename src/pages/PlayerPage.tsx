@@ -9,15 +9,6 @@ import { PlayerNicknameForm } from '@/components/game/player/PlayerNicknameForm'
 import { PlayerAnswerScreen } from '@/components/game/player/PlayerAnswerScreen';
 import { PlayerWaitingScreen } from '@/components/game/player/PlayerWaitingScreen';
 import { useSound } from '@/hooks/useSound';
-// Fisher-Yates shuffle algorithm
-const shuffleArray = (array: number[]) => {
-  const newArray = [...array];
-  for (let i = newArray.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [newArray[i], newArray[j]] = [newArray[j], newArray[i]];
-  }
-  return newArray;
-};
 export function PlayerPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -30,7 +21,7 @@ export function PlayerPage() {
   const [isJoined, setIsJoined] = useState(false);
   const [submittedAnswer, setSubmittedAnswer] = useState<number | null>(null);
   const [answerResult, setAnswerResult] = useState<{ isCorrect: boolean; score: number } | null>(null);
-  const [shuffledIndices, setShuffledIndices] = useState<number[]>([]);
+  const [optionIndices, setOptionIndices] = useState<number[]>([]);
   const { playSound } = useSound();
   useEffect(() => {
     if (!gameId) {
@@ -49,7 +40,7 @@ export function PlayerPage() {
       setSubmittedAnswer(null);
       setAnswerResult(null);
       const initialIndices = Array.from({ length: questionOptionsCount }, (_, i) => i);
-      setShuffledIndices(shuffleArray(initialIndices));
+      setOptionIndices(initialIndices);
     }
     if (gameState?.phase === 'REVEAL' && submittedAnswer !== null) {
       const myAnswer = gameState.answers.find(a => a.playerId === playerId);
@@ -109,12 +100,12 @@ export function PlayerPage() {
     if (isLoading && !gameState) return <Loader2 className="h-16 w-16 animate-spin text-white" />;
     if (error) return <div className="text-red-300">{error}</div>;
     if (!gameState) return <div>Waiting for game...</div>;
-    if (gameState.phase === 'QUESTION' && shuffledIndices.length > 0) {
+    if (gameState.phase === 'QUESTION' && optionIndices.length > 0) {
       return (
         <PlayerAnswerScreen
           onAnswer={handleAnswer}
           submittedAnswer={submittedAnswer}
-          shuffledIndices={shuffledIndices}
+          optionIndices={optionIndices}
         />
       );
     }
