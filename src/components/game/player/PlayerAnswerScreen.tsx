@@ -1,6 +1,5 @@
 import { motion } from 'framer-motion';
 import { cn } from '@/lib/utils';
-import { useIsMobile } from '@/hooks/use-mobile';
 const shapeColors = [
   'bg-quiz-red',    // Triangle
   'bg-quiz-blue',   // Diamond
@@ -19,13 +18,12 @@ interface PlayerAnswerScreenProps {
   optionIndices: number[];
 }
 export function PlayerAnswerScreen({ onAnswer, submittedAnswer, optionIndices }: PlayerAnswerScreenProps) {
-  const isMobile = useIsMobile();
   const buttonsToShow = optionIndices;
   return (
     <motion.div
       className={cn(
         "grid gap-4 w-full h-full",
-        isMobile ? "grid-cols-1" : "grid-cols-2"
+        "grid-cols-2"
       )}
       key="answer-screen"
       initial={{ opacity: 0, scale: 0.8 }}

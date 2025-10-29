@@ -14,17 +14,9 @@ import type { ApiResponse, Quiz } from '@shared/types';
 const questionSchema = z.object({
   text: z.string().min(1, 'Question text is required.'),
   options: z.array(z.string().min(1, 'Option text is required.')).min(2).max(4),
-  correctAnswerIndex: z.preprocess(
-    (val) => {
-      if (val === undefined || val === null || val === '') return NaN;
-      const processed = Number(val);
-      return isNaN(processed) ? val : processed;
-    },
-    z.number({
-      required_error: "A correct answer must be selected.",
-      invalid_type_error: "A correct answer must be selected.",
-    }).int().min(0, { message: "A correct answer must be selected." })
-  ),
+  correctAnswerIndex: z.string({
+    required_error: "A correct answer must be selected.",
+  }).transform(val => parseInt(val, 10)),
 });
 const quizSchema = z.object({
   title: z.string().min(1, 'Quiz title is required.'),
@@ -46,7 +38,15 @@ export function QuizEditorPage() {
           const response = await fetch(`/api/quizzes/custom/${quizId}`);
           const result = await response.json() as ApiResponse<Quiz>;
           if (result.success && result.data) {
-            reset(result.data);
+            // Transform correctAnswerIndex to string for the form
+            const formData = {
+              ...result.data,
+              questions: result.data.questions.map(q => ({
+                ...q,
+                correctAnswerIndex: String(q.correctAnswerIndex),
+              })),
+            };
+            reset(formData);
           } else {
             throw new Error(result.error || 'Failed to fetch quiz');
           }
@@ -58,7 +58,7 @@ export function QuizEditorPage() {
       fetchQuiz();
     } else {
       // Start a new quiz with one empty question
-      reset({ title: '', questions: [{ text: '', options: ['', ''], correctAnswerIndex: 0 }] });
+      reset({ title: '', questions: [{ text: '', options: ['', ''], correctAnswerIndex: '0' }] });
     }
   }, [quizId, reset, navigate]);
   const onSubmit: SubmitHandler<QuizFormData> = async (data) => {
@@ -80,7 +80,7 @@ export function QuizEditorPage() {
       toast.error(error.message);
     }
   };
-  const addQuestion = () => append({ text: '', options: ['', ''], correctAnswerIndex: 0 });
+  const addQuestion = () => append({ text: '', options: ['', ''], correctAnswerIndex: '0' });
   const addOption = (qIndex: number) => {
     const currentOptions = fields[qIndex].options;
     if (currentOptions.length < 4) {
@@ -91,9 +91,9 @@ export function QuizEditorPage() {
     const currentOptions = fields[qIndex].options;
     if (currentOptions.length > 2) {
       const newOptions = currentOptions.filter((_, i) => i !== oIndex);
-      const currentCorrect = fields[qIndex].correctAnswerIndex;
+      const currentCorrect = parseInt(fields[qIndex].correctAnswerIndex, 10);
       const newCorrect = currentCorrect >= oIndex ? Math.max(0, currentCorrect - 1) : currentCorrect;
-      update(qIndex, { ...fields[qIndex], options: newOptions, correctAnswerIndex: newCorrect });
+      update(qIndex, { ...fields[qIndex], options: newOptions, correctAnswerIndex: String(newCorrect) });
     }
   };
   return (
