@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useGameStore } from '@/lib/game-store';
 import { useGamePolling } from '@/hooks/useGamePolling';
 import { Loader2 } from 'lucide-react';
@@ -20,7 +20,8 @@ const shuffleArray = (array: number[]) => {
 };
 export function PlayerPage() {
   const navigate = useNavigate();
-  const gamePin = useGameStore(s => s.gamePin);
+  const [searchParams] = useSearchParams();
+  const gameId = searchParams.get('gameId');
   const playerId = useGameStore(s => s.playerId);
   const setPlayerId = useGameStore(s => s.setPlayerId);
   const setGameState = useGameStore(s => s.setGameState);
@@ -32,14 +33,15 @@ export function PlayerPage() {
   const [shuffledIndices, setShuffledIndices] = useState<number[]>([]);
   const { playSound } = useSound();
   useEffect(() => {
-    if (!gamePin) {
-      navigate('/join');
+    if (!gameId) {
+      toast.error("No game ID found. Returning to home page.");
+      navigate('/');
     }
     if (!playerId) {
       setPlayerId(crypto.randomUUID()); // This is safe, it only runs if playerId is not in session storage
     }
-  }, [gamePin, playerId, navigate, setPlayerId]);
-  const { isLoading, error, gameState } = useGamePolling(gamePin!, isJoined && !!gamePin);
+  }, [gameId, playerId, navigate, setPlayerId]);
+  const { isLoading, error, gameState } = useGamePolling(gameId!, isJoined && !!gameId);
   const currentQuestionIndex = gameState?.currentQuestionIndex;
   const questionOptionsCount = gameState?.questions[currentQuestionIndex ?? -1]?.options.length;
   useEffect(() => {
@@ -50,7 +52,7 @@ export function PlayerPage() {
       setShuffledIndices(shuffleArray(initialIndices));
     }
     if (gameState?.phase === 'REVEAL' && submittedAnswer !== null) {
-      const myAnswer = gameState.answers.find(a => a.playerId === playerId && a.answerIndex === submittedAnswer);
+      const myAnswer = gameState.answers.find(a => a.playerId === playerId);
       if (myAnswer && !answerResult) { // Only set result once
         const result = { isCorrect: myAnswer.isCorrect, score: myAnswer.score };
         setAnswerResult(result);
@@ -59,11 +61,11 @@ export function PlayerPage() {
     }
   }, [gameState?.phase, currentQuestionIndex, questionOptionsCount, gameState?.answers, playerId, submittedAnswer, playSound, answerResult]);
   const handleJoin = async (name: string) => {
-    if (!name.trim() || !playerId || !gamePin) return;
+    if (!name.trim() || !playerId || !gameId) return;
     setIsJoining(true);
     setNickname(name);
     try {
-      const res = await fetch(`/api/games/${gamePin}/players`, {
+      const res = await fetch(`/api/games/${gameId}/players`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ name, playerId }),
@@ -80,10 +82,10 @@ export function PlayerPage() {
     }
   };
   const handleAnswer = async (answerIndex: number) => {
-    if (submittedAnswer !== null || !playerId || !gamePin) return;
+    if (submittedAnswer !== null || !playerId || !gameId) return;
     setSubmittedAnswer(answerIndex);
     try {
-      await fetch(`/api/games/${gamePin}/answer`, {
+      await fetch(`/api/games/${gameId}/answer`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ playerId, answerIndex }),
@@ -121,6 +123,7 @@ export function PlayerPage() {
         phase={gameState.phase}
         answerResult={answerResult}
         finalScore={me?.score}
+        playerId={playerId}
       />
     );
   };

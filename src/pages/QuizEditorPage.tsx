@@ -15,7 +15,6 @@ const questionSchema = z.object({
   text: z.string().min(1, 'Question text is required.'),
   options: z.array(z.string().min(1, 'Option text is required.')).min(2).max(4),
   correctAnswerIndex: z.coerce.number({
-    required_error: "A correct answer must be selected.",
     invalid_type_error: "A correct answer must be selected.",
   }).int().min(0, "A correct answer must be selected."),
 });
@@ -153,6 +152,7 @@ export function QuizEditorPage() {
                     )}
                   />
                   {errors.questions?.[qIndex]?.options && <p className="text-red-500 text-sm mt-1">Each option must have text.</p>}
+                  {errors.questions?.[qIndex]?.correctAnswerIndex && <p className="text-red-500 text-sm mt-1">{errors.questions[qIndex]?.correctAnswerIndex?.message}</p>}
                 </div>
                 {field.options.length < 4 && (
                   <Button type="button" variant="outline" onClick={() => addOption(qIndex)}>

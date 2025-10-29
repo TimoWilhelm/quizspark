@@ -5,9 +5,10 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { QRCode } from '@/components/game/QRCode';
 export function HostLobby({ onStart }: { onStart: () => void }) {
-  const pin = useGameStore(s => s.gameState?.pin);
-  const players = useGameStore(s => s.gameState?.players);
-  const joinUrl = `${window.location.origin}/join`;
+  const gameState = useGameStore(s => s.gameState);
+  const pin = gameState?.pin;
+  const players = gameState?.players;
+  const joinUrl = `${window.location.origin}/play?gameId=${gameState?.id}`;
   return (
     <div className="flex-grow flex flex-col items-center justify-center p-4 sm:p-8 space-y-6">
       <motion.h1

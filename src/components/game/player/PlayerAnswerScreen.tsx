@@ -17,6 +17,9 @@ interface PlayerAnswerScreenProps {
   shuffledIndices: number[];
 }
 export function PlayerAnswerScreen({ onAnswer, submittedAnswer, shuffledIndices }: PlayerAnswerScreenProps) {
+  const buttonsToShow = submittedAnswer !== null
+    ? shuffledIndices.filter(originalIndex => originalIndex === submittedAnswer)
+    : shuffledIndices;
   return (
     <motion.div
       className="grid grid-cols-2 gap-4 w-full h-full"
@@ -25,16 +28,17 @@ export function PlayerAnswerScreen({ onAnswer, submittedAnswer, shuffledIndices 
       animate={{ opacity: 1, scale: 1 }}
       exit={{ opacity: 0, scale: 0.8 }}
     >
-      {shuffledIndices.map((originalIndex, displayIndex) => (
+      {buttonsToShow.map((originalIndex, displayIndex) => (
         <motion.button
           key={originalIndex}
           onClick={() => onAnswer(originalIndex)}
           disabled={submittedAnswer !== null}
-          className={`rounded-2xl flex items-center justify-center shadow-lg transition-all duration-200 ${shapeColors[originalIndex]} ${submittedAnswer !== null && submittedAnswer !== originalIndex ? 'opacity-25 scale-90' : 'hover:scale-105'}`}
+          className={`rounded-2xl flex items-center justify-center shadow-lg transition-all duration-200 ${shapeColors[originalIndex]} ${submittedAnswer !== null ? '' : 'hover:scale-105'}`}
           whileTap={{ scale: 0.9 }}
           initial={{ opacity: 0, scale: 0.5 }}
           animate={{ opacity: 1, scale: 1 }}
           transition={{ delay: displayIndex * 0.1 }}
+          layout
         >
           <svg viewBox="0 0 24 24" className="w-1/2 h-1/2 text-white fill-current"><path d={shapePaths[originalIndex]} /></svg>
         </motion.button>
