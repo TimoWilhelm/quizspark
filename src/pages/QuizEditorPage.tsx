@@ -14,9 +14,9 @@ import type { ApiResponse, Quiz } from '@shared/types';
 const questionSchema = z.object({
   text: z.string().min(1, 'Question text is required.'),
   options: z.array(z.string().min(1, 'Option text is required.')).min(2).max(4),
-  correctAnswerIndex: z.string({
+  correctAnswerIndex: z.coerce.number({
     required_error: "A correct answer must be selected.",
-  }).transform(val => parseInt(val, 10)),
+  }),
 });
 const quizSchema = z.object({
   title: z.string().min(1, 'Quiz title is required.'),
@@ -27,7 +27,7 @@ type QuizFormData = z.output<typeof quizSchema>;
 export function QuizEditorPage() {
   const { quizId } = useParams<{ quizId?: string }>();
   const navigate = useNavigate();
-  const { register, control, handleSubmit, reset, formState: { errors, isSubmitting } } = useForm<QuizFormInput>({
+  const { register, control, handleSubmit, reset, formState: { errors, isSubmitting } } = useForm<QuizFormInput, any, QuizFormData>({
     resolver: zodResolver(quizSchema),
     defaultValues: { title: '', questions: [] },
   });
@@ -62,7 +62,7 @@ export function QuizEditorPage() {
       reset({ title: '', questions: [{ text: '', options: ['', ''], correctAnswerIndex: '0' }] });
     }
   }, [quizId, reset, navigate]);
-  const onSubmit: SubmitHandler<QuizFormData> = async (data) => {
+  const onSubmit: SubmitHandler<QuizFormInput> = async (data) => {
     try {
       const url = quizId ? `/api/quizzes/custom/${quizId}` : '/api/quizzes/custom';
       const method = quizId ? 'PUT' : 'POST';
