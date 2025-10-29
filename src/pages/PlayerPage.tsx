@@ -36,12 +36,17 @@ export function PlayerPage() {
   const currentQuestionIndex = gameState?.currentQuestionIndex;
   const questionOptionsCount = gameState?.questions[currentQuestionIndex ?? -1]?.options.length;
   useEffect(() => {
+    // This effect runs when a new question is presented
     if (gameState?.phase === 'QUESTION' && questionOptionsCount) {
       setSubmittedAnswer(null);
       setAnswerResult(null);
       const initialIndices = Array.from({ length: questionOptionsCount }, (_, i) => i);
       setOptionIndices(initialIndices);
     }
+  }, [gameState?.phase, currentQuestionIndex, questionOptionsCount]);
+
+  useEffect(() => {
+    // This effect runs when the answer is revealed
     if (gameState?.phase === 'REVEAL' && submittedAnswer !== null) {
       const myAnswer = gameState.answers.find(a => a.playerId === playerId);
       if (myAnswer && !answerResult) { // Only set result once
@@ -50,7 +55,7 @@ export function PlayerPage() {
         playSound(result.isCorrect ? 'correct' : 'incorrect');
       }
     }
-  }, [gameState?.phase, currentQuestionIndex, questionOptionsCount, gameState?.answers, playerId, submittedAnswer, playSound, answerResult]);
+  }, [gameState?.phase, gameState?.answers, playerId, submittedAnswer, playSound, answerResult]);
   const handleJoin = async (name: string) => {
     if (!name.trim() || !playerId || !gameId) return;
     setIsJoining(true);
