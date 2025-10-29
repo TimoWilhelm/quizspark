@@ -14,9 +14,9 @@ import type { ApiResponse, Quiz } from '@shared/types';
 const questionSchema = z.object({
   text: z.string().min(1, 'Question text is required.'),
   options: z.array(z.string().min(1, 'Option text is required.')).min(2).max(4),
-  correctAnswerIndex: z.coerce.number({
+  correctAnswerIndex: z.string({
     required_error: "A correct answer must be selected.",
-  }),
+  }).transform(val => parseInt(val, 10)).pipe(z.number().int().min(0)),
 });
 const quizSchema = z.object({
   title: z.string().min(1, 'Quiz title is required.'),
@@ -62,7 +62,7 @@ export function QuizEditorPage() {
       reset({ title: '', questions: [{ text: '', options: ['', ''], correctAnswerIndex: '0' }] });
     }
   }, [quizId, reset, navigate]);
-  const onSubmit: SubmitHandler<QuizFormInput> = async (data) => {
+  const onSubmit: SubmitHandler<QuizFormData> = async (data) => {
     try {
       const url = quizId ? `/api/quizzes/custom/${quizId}` : '/api/quizzes/custom';
       const method = quizId ? 'PUT' : 'POST';
@@ -77,8 +77,12 @@ export function QuizEditorPage() {
       }
       toast.success(`Quiz "${result.data?.title}" saved successfully!`);
       navigate('/');
-    } catch (error: any) {
-      toast.error(error.message);
+    } catch (error) {
+      if (error instanceof Error) {
+        toast.error(error.message);
+      } else {
+        toast.error(String(error));
+      }
     }
   };
   const addQuestion = () => append({ text: '', options: ['', ''], correctAnswerIndex: '0' });
