@@ -14,9 +14,17 @@ import type { ApiResponse, Quiz } from '@shared/types';
 const questionSchema = z.object({
   text: z.string().min(1, 'Question text is required.'),
   options: z.array(z.string().min(1, 'Option text is required.')).min(2).max(4),
-  correctAnswerIndex: z.coerce.number({
-    invalid_type_error: "A correct answer must be selected.",
-  }).int().min(0, { message: "A correct answer must be selected." }),
+  correctAnswerIndex: z.preprocess(
+    (val) => {
+      if (val === undefined || val === null || val === '') return NaN;
+      const processed = Number(val);
+      return isNaN(processed) ? val : processed;
+    },
+    z.number({
+      required_error: "A correct answer must be selected.",
+      invalid_type_error: "A correct answer must be selected.",
+    }).int().min(0, { message: "A correct answer must be selected." })
+  ),
 });
 const quizSchema = z.object({
   title: z.string().min(1, 'Quiz title is required.'),
