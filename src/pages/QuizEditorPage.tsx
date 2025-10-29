@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
-import { useForm, useFieldArray, Controller } from 'react-hook-form';
+import { useParams, useNavigate, Link } from 'react-router-dom';
+import { useForm, useFieldArray, Controller, SubmitHandler } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Button } from '@/components/ui/button';
@@ -8,13 +8,13 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
-import { PlusCircle, Trash2, Loader2, Save } from 'lucide-react';
+import { PlusCircle, Trash2, Loader2, Save, ArrowLeft } from 'lucide-react';
 import { Toaster, toast } from 'sonner';
 import type { ApiResponse, Quiz } from '@shared/types';
 const questionSchema = z.object({
   text: z.string().min(1, 'Question text is required.'),
   options: z.array(z.string().min(1, 'Option text is required.')).min(2).max(4),
-  correctAnswerIndex: z.coerce.number().min(0),
+  correctAnswerIndex: z.coerce.number({ invalid_type_error: "A correct answer must be selected." }).int().min(0),
 });
 const quizSchema = z.object({
   title: z.string().min(1, 'Quiz title is required.'),
@@ -51,7 +51,7 @@ export function QuizEditorPage() {
       reset({ title: '', questions: [{ text: '', options: ['', ''], correctAnswerIndex: 0 }] });
     }
   }, [quizId, reset, navigate]);
-  const onSubmit = async (data: QuizFormData) => {
+  const onSubmit: SubmitHandler<QuizFormData> = async (data) => {
     try {
       const url = quizId ? `/api/quizzes/custom/${quizId}` : '/api/quizzes/custom';
       const method = quizId ? 'PUT' : 'POST';
@@ -91,7 +91,14 @@ export function QuizEditorPage() {
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-8">
           <div className="flex justify-between items-center">
-            <h1 className="text-4xl font-display font-bold">{quizId ? 'Edit Quiz' : 'Create a New Quiz'}</h1>
+            <div className="flex items-center gap-4">
+              <Link to="/">
+                <Button type="button" variant="outline" size="icon">
+                  <ArrowLeft className="h-5 w-5" />
+                </Button>
+              </Link>
+              <h1 className="text-2xl sm:text-4xl font-display font-bold">{quizId ? 'Edit Quiz' : 'Create a New Quiz'}</h1>
+            </div>
             <Button type="submit" disabled={isSubmitting} size="lg" className="bg-quiz-blue hover:bg-quiz-blue/90">
               {isSubmitting ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : <Save className="mr-2 h-5 w-5" />}
               Save Quiz

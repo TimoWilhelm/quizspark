@@ -3,10 +3,11 @@ import { useNavigate } from 'react-router-dom';
 import { Sparkles, Loader2, CheckCircle, Pencil, Trash2, PlusCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardTitle } from '@/components/ui/card';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Toaster, toast } from 'sonner';
 import type { ApiResponse, GameState, QuizTopic, Quiz } from '@shared/types';
 import { cn } from '@/lib/utils';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 export function HomePage() {
   const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState(false);
@@ -143,13 +144,26 @@ export function HomePage() {
           </div>
         )}
         <div className="flex justify-center gap-4 pt-4">
-          <Button size="lg" onClick={handleStartGame} disabled={isGameStarting || !selectedQuizId} className="bg-quiz-blue hover:bg-quiz-blue/90 text-white px-12 py-8 text-2xl font-bold rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 active:scale-95">
-            {isGameStarting ? <Loader2 className="mr-2 h-8 w-8 animate-spin" /> : 'Start Selected Quiz'}
-          </Button>
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <div className="inline-block">
+                  <Button size="lg" onClick={handleStartGame} disabled={isGameStarting || !selectedQuizId} className="bg-quiz-blue hover:bg-quiz-blue/90 text-white px-12 py-8 text-2xl font-bold rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 active:scale-95">
+                    {isGameStarting ? <Loader2 className="mr-2 h-8 w-8 animate-spin" /> : 'Start Selected Quiz'}
+                  </Button>
+                </div>
+              </TooltipTrigger>
+              {!selectedQuizId && (
+                <TooltipContent>
+                  <p>Please select a quiz first!</p>
+                </TooltipContent>
+              )}
+            </Tooltip>
+          </TooltipProvider>
         </div>
       </div>
       <footer className="absolute bottom-8 text-center text-muted-foreground/80">
-        <p>Built with ���️ at Cloudflare</p>
+        <p>Built with ❤️ at Cloudflare</p>
       </footer>
       <Toaster richColors closeButton />
     </div>
