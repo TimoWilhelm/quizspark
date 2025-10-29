@@ -1,50 +1,64 @@
 import { Hono } from "hono";
 import { Env } from './core-utils';
-import type { DemoItem, ApiResponse } from '@shared/types';
-
+import type { ApiResponse, GameState } from '@shared/types';
 export function userRoutes(app: Hono<{ Bindings: Env }>) {
-    app.get('/api/test', (c) => c.json({ success: true, data: { name: 'CF Workers Demo' }}));
-
-    // Demo items endpoint using Durable Object storage
-    app.get('/api/demo', async (c) => {
+    // Create a new game
+    app.post('/api/games', async (c) => {
         const durableObjectStub = c.env.GlobalDurableObject.get(c.env.GlobalDurableObject.idFromName("global"));
-        const data = await durableObjectStub.getDemoItems();
-        return c.json({ success: true, data } satisfies ApiResponse<DemoItem[]>);
+        const data = await durableObjectStub.createGame();
+        return c.json({ success: true, data } satisfies ApiResponse<GameState>);
     });
-
-    // Counter using Durable Object
-    app.get('/api/counter', async (c) => {
+    // Get the current game state
+    app.get('/api/games/:gameId', async (c) => {
         const durableObjectStub = c.env.GlobalDurableObject.get(c.env.GlobalDurableObject.idFromName("global"));
-        const data = await durableObjectStub.getCounterValue();
-        return c.json({ success: true, data } satisfies ApiResponse<number>);
+        const data = await durableObjectStub.getGameState();
+        if (!data) {
+            return c.json({ success: false, error: 'Game not found' }, 404);
+        }
+        return c.json({ success: true, data } satisfies ApiResponse<GameState>);
     });
-    
-    app.post('/api/counter/increment', async (c) => {
+    // Player joins a game
+    app.post('/api/games/:gameId/players', async (c) => {
+        const { name, playerId } = await c.req.json<{ name: string, playerId: string }>();
+        if (!name || !playerId) {
+            return c.json({ success: false, error: 'Name and playerId are required' }, 400);
+        }
         const durableObjectStub = c.env.GlobalDurableObject.get(c.env.GlobalDurableObject.idFromName("global"));
-        const data = await durableObjectStub.increment();
-        return c.json({ success: true, data } satisfies ApiResponse<number>);
+        const data = await durableObjectStub.addPlayer(name, playerId);
+        if ('error' in data) {
+            return c.json({ success: false, error: data.error }, 400);
+        }
+        return c.json({ success: true, data } satisfies ApiResponse<GameState>);
     });
-
-    // Demo item management endpoints
-    app.post('/api/demo', async (c) => {
-        const body = await c.req.json() as DemoItem;
+    // Host starts the game
+    app.post('/api/games/:gameId/start', async (c) => {
         const durableObjectStub = c.env.GlobalDurableObject.get(c.env.GlobalDurableObject.idFromName("global"));
-        const data = await durableObjectStub.addDemoItem(body);
-        return c.json({ success: true, data } satisfies ApiResponse<DemoItem[]>);
+        const data = await durableObjectStub.startGame();
+        if ('error' in data) {
+            return c.json({ success: false, error: data.error }, 400);
+        }
+        return c.json({ success: true, data } satisfies ApiResponse<GameState>);
     });
-
-    app.put('/api/demo/:id', async (c) => {
-        const id = c.req.param('id');
-        const body = await c.req.json() as Partial<Omit<DemoItem, 'id'>>;
+    // Player submits an answer
+    app.post('/api/games/:gameId/answer', async (c) => {
+        const { playerId, answerIndex } = await c.req.json<{ playerId: string, answerIndex: number }>();
+        if (playerId === undefined || answerIndex === undefined) {
+            return c.json({ success: false, error: 'playerId and answerIndex are required' }, 400);
+        }
         const durableObjectStub = c.env.GlobalDurableObject.get(c.env.GlobalDurableObject.idFromName("global"));
-        const data = await durableObjectStub.updateDemoItem(id, body);
-        return c.json({ success: true, data } satisfies ApiResponse<DemoItem[]>);
+        const data = await durableObjectStub.submitAnswer(playerId, answerIndex);
+        if ('error' in data) {
+            return c.json({ success: false, error: data.error }, 400);
+        }
+        return c.json({ success: true, data } satisfies ApiResponse<GameState>);
     });
-
-    app.delete('/api/demo/:id', async (c) => {
-        const id = c.req.param('id');
+    // Host advances to the next state (e.g., from question to leaderboard)
+    app.post('/api/games/:gameId/next', async (c) => {
         const durableObjectStub = c.env.GlobalDurableObject.get(c.env.GlobalDurableObject.idFromName("global"));
-        const data = await durableObjectStub.deleteDemoItem(id);
-        return c.json({ success: true, data } satisfies ApiResponse<DemoItem[]>);
+        const data = await durableObjectStub.nextState();
+        if ('error' in data) {
+            return c.json({ success: false, error: data.error }, 400);
+        }
+        return c.json({ success: true, data } satisfies ApiResponse<GameState>);
     });
 }

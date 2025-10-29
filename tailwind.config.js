@@ -140,7 +140,11 @@ export default {
   				'accent-foreground': 'hsl(var(--sidebar-accent-foreground))',
   				border: 'hsl(var(--sidebar-border))',
   				ring: 'hsl(var(--sidebar-ring))'
-  			}
+  			},
+        'quiz-blue': 'rgb(29 78 216)',
+        'quiz-pink': 'rgb(217 70 239)',
+        'quiz-yellow': 'rgb(251 191 36)',
+        'quiz-red': 'rgb(220 38 38)',
   		},
   		boxShadow: {
   			soft: '0 2px 15px -3px rgba(0, 0, 0, 0.07), 0 10px 20px -2px rgba(0, 0, 0, 0.04)',

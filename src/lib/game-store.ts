@@ -3,36 +3,25 @@ import { persist, createJSONStorage } from 'zustand/middleware';
 import type { GameState } from '@shared/types';
 interface GameStoreState {
   gameState: GameState | null;
-  gameId: string | null;
+  gamePin: string | null;
   playerId: string | null;
-  nickname: string | null;
   setGameState: (state: GameState) => void;
-  setSession: (session: { gameId: string; playerId: string; nickname: string }) => void;
-  clearSession: () => void;
+  setGamePin: (pin: string) => void;
+  setPlayerId: (id: string) => void;
 }
 export const useGameStore = create<GameStoreState>()(
   persist(
     (set) => ({
       gameState: null,
-      gameId: null,
+      gamePin: null,
       playerId: null,
-      nickname: null,
       setGameState: (state) => set({ gameState: state }),
-      setSession: (session) => set({
-        gameId: session.gameId,
-        playerId: session.playerId,
-        nickname: session.nickname,
-      }),
-      clearSession: () => set({
-        gameId: null,
-        playerId: null,
-        nickname: null,
-        gameState: null,
-      }),
+      setGamePin: (pin) => set({ gamePin: pin }),
+      setPlayerId: (id) => set({ playerId: id }),
     }),
     {
-      name: 'quizspark-player-session',
-      storage: createJSONStorage(() => localStorage), // Use localStorage for persistence
+      name: 'quizspark-storage',
+      storage: createJSONStorage(() => sessionStorage), // Use sessionStorage
     }
   )
 );

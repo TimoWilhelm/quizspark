@@ -9,7 +9,7 @@ export function useGamePolling(gameId: string, enabled = true) {
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
   useEffect(() => {
     const fetchState = async () => {
-      if (!gameId || gameId === 'null' || gameId === 'undefined') {
+      if (!gameId) {
         setError('No game ID provided.');
         setIsLoading(false);
         return;
