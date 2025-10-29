@@ -7,7 +7,7 @@ function PodiumPlace({ player, rank }: { player: Player, rank: number }) {
   const color = rank === 1 ? 'bg-yellow-400' : rank === 2 ? 'bg-gray-400' : 'bg-yellow-600';
   const delay = rank === 1 ? 0.4 : rank === 2 ? 0.2 : 0.6;
   return (
-    <motion.div 
+    <motion.div
       className="text-center flex flex-col items-center"
       initial={{ opacity: 0, y: 100 }}
       animate={{ opacity: 1, y: 0 }}
@@ -24,10 +24,15 @@ function PodiumPlace({ player, rank }: { player: Player, rank: number }) {
 export function HostEnd() {
   const players = useGameStore(s => s.gameState?.players);
   const top3 = players?.slice(0, 3) || [];
-  const podiumOrder = [top3.find((_, i) => i === 1), top3.find((_, i) => i === 0), top3.find((_, i) => i === 2)].filter(Boolean) as Player[];
+  // Reorder for visual podium: 2nd, 1st, 3rd
+  const podiumOrder = [
+    top3.find((_, i) => i === 1), 
+    top3.find((_, i) => i === 0), 
+    top3.find((_, i) => i === 2)
+  ].filter(Boolean) as Player[];
   return (
     <div className="flex-grow flex flex-col items-center justify-center p-4 sm:p-8 space-y-8">
-      <motion.h1 
+      <motion.h1
         initial={{ opacity: 0, scale: 0.5 }}
         animate={{ opacity: 1, scale: 1 }}
         className="text-5xl sm:text-7xl font-bold"

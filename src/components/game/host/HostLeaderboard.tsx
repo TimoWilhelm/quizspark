@@ -9,7 +9,7 @@ export function HostLeaderboard({ onNext }: { onNext: () => void }) {
   const top5 = players?.slice(0, 5) || [];
   return (
     <div className="flex-grow flex flex-col items-center justify-center p-4 sm:p-8 space-y-8">
-      <motion.h1 
+      <motion.h1
         initial={{ opacity: 0, y: -30 }}
         animate={{ opacity: 1, y: 0 }}
         className="text-5xl sm:text-6xl font-bold flex items-center gap-4"
@@ -20,8 +20,8 @@ export function HostLeaderboard({ onNext }: { onNext: () => void }) {
         <CardContent className="p-0">
           <ul className="divide-y">
             {top5.map((player, i) => (
-              <motion.li 
-                key={player.id} 
+              <motion.li
+                key={player.id}
                 className="flex items-center justify-between p-4 text-xl sm:text-2xl font-bold"
                 initial={{ opacity: 0, x: -100 }}
                 animate={{ opacity: 1, x: 0 }}
