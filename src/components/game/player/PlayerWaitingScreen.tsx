@@ -35,7 +35,7 @@ export function PlayerWaitingScreen({ phase, answerResult, finalScore, playerId 
             <p>Look at the main screen.</p>
           </div>
         );
-      case 'LEADERBOARD':
+      case 'LEADERBOARD': {
         const myRank = players.findIndex(p => p.id === playerId) + 1;
         const top3 = players.slice(0, 3);
         return (
@@ -54,6 +54,7 @@ export function PlayerWaitingScreen({ phase, answerResult, finalScore, playerId 
             </ul>
           </div>
         );
+      }
       case 'END':
         return (
           <div className="text-center">
