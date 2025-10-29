@@ -15,7 +15,7 @@ const questionSchema = z.object({
   text: z.string().min(1, 'Question text is required.'),
   options: z.array(z.string().min(1, 'Option text is required.')).min(2).max(4),
   correctAnswerIndex: z.string({
-    required_error: "A correct answer must be selected.",
+    message: "A correct answer must be selected.",
   }).transform(val => parseInt(val, 10)).pipe(z.number().int().min(0)),
 });
 const quizSchema = z.object({
