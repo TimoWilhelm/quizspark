@@ -1,15 +1,12 @@
-import { CheckCircle, XCircle, Loader2, Trophy } from 'lucide-react';
+import { CheckCircle, XCircle, Loader2 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import type { GamePhase } from '@shared/types';
-import { useGameStore } from '@/lib/game-store';
 interface PlayerWaitingScreenProps {
   phase: GamePhase;
   answerResult: { isCorrect: boolean; score: number } | null;
   finalScore?: number;
-  playerId: string | null;
 }
-export function PlayerWaitingScreen({ phase, answerResult, finalScore, playerId }: PlayerWaitingScreenProps) {
-  const players = useGameStore(s => s.gameState?.players) || [];
+export function PlayerWaitingScreen({ phase, answerResult, finalScore }: PlayerWaitingScreenProps) {
   const renderContent = () => {
     switch (phase) {
       case 'LOBBY':
@@ -20,6 +17,7 @@ export function PlayerWaitingScreen({ phase, answerResult, finalScore, playerId 
           </div>
         );
       case 'REVEAL':
+      case 'LEADERBOARD':
         if (answerResult) {
           return (
             <div className={`flex flex-col items-center justify-center text-center ${answerResult.isCorrect ? 'text-green-300' : 'text-red-300'}`}>
@@ -35,26 +33,6 @@ export function PlayerWaitingScreen({ phase, answerResult, finalScore, playerId 
             <p>Look at the main screen.</p>
           </div>
         );
-      case 'LEADERBOARD': {
-        const myRank = players.findIndex(p => p.id === playerId) + 1;
-        const top3 = players.slice(0, 3);
-        return (
-          <div className="text-center">
-            <h2 className="text-4xl font-bold mb-4">Current Standings</h2>
-            {myRank > 0 && (
-              <p className="text-2xl mb-6">You are in <span className="font-bold text-quiz-yellow">#{myRank}</span> place!</p>
-            )}
-            <ul className="space-y-2 text-lg">
-              {top3.map((player, i) => (
-                <li key={player.id} className="flex justify-between w-64 mx-auto">
-                  <span><Trophy className={`inline w-5 h-5 mr-2 ${i === 0 ? 'text-yellow-400' : i === 1 ? 'text-gray-400' : 'text-yellow-600'}`} />{player.name}</span>
-                  <span>{player.score}</span>
-                </li>
-              ))}
-            </ul>
-          </div>
-        );
-      }
       case 'END':
         return (
           <div className="text-center">

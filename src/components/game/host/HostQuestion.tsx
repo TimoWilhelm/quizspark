@@ -36,7 +36,7 @@ export function HostQuestion({ onNext }: { onNext: () => void }) {
     <div className="flex-grow flex flex-col p-4 sm:p-8">
       <div className="flex justify-between items-center mb-4">
         <span className="text-xl sm:text-2xl font-bold">Question {index! + 1}/{total}</span>
-        <motion.div
+        <motion.div 
           key={timeLeft}
           initial={{ scale: 1.2, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
@@ -51,7 +51,7 @@ export function HostQuestion({ onNext }: { onNext: () => void }) {
       </div>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-2 sm:gap-4">
         {question.options.map((option, i) => (
-          <motion.div
+          <motion.div 
             key={i}
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}

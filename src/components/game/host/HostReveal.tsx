@@ -1,5 +1,6 @@
 import { useGameStore } from '@/lib/game-store';
 import { Button } from '@/components/ui/button';
+import { Progress } from '@/components/ui/progress';
 import { motion } from 'framer-motion';
 import { CheckCircle } from 'lucide-react';
 export function HostReveal({ onNext }: { onNext: () => void }) {
@@ -18,27 +19,14 @@ export function HostReveal({ onNext }: { onNext: () => void }) {
           const count = answerCounts[i];
           const percentage = totalAnswers > 0 ? (count / totalAnswers) * 100 : 0;
           return (
-            <motion.div
+            <motion.div 
               key={i}
               initial={{ opacity: 0, x: -50 }}
-              animate={{
-                opacity: 1,
-                x: 0,
-                scale: isCorrect ? [1, 1.03, 1] : 1,
-              }}
-              transition={{
-                delay: i * 0.2,
-                ...(isCorrect && {
-                  scale: {
-                    repeat: Infinity,
-                    duration: 1.5,
-                    ease: "easeInOut"
-                  }
-                })
-              }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: i * 0.2 }}
               className={`p-4 rounded-lg shadow-md relative overflow-hidden ${isCorrect ? 'bg-green-100 border-2 border-green-500' : 'bg-white'}`}
             >
-              <motion.div
+              <motion.div 
                 className="absolute top-0 left-0 h-full bg-green-300/50"
                 initial={{ width: 0 }}
                 animate={{ width: `${percentage}%` }}
