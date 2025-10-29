@@ -6,7 +6,6 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { QRCode } from '@/components/game/QRCode';
 export function HostLobby({ onStart }: { onStart: () => void }) {
   const gameState = useGameStore(s => s.gameState);
-  const pin = gameState?.pin;
   const players = gameState?.players;
   const joinUrl = `${window.location.origin}/play?gameId=${gameState?.id}`;
   return (
@@ -30,15 +29,7 @@ export function HostLobby({ onStart }: { onStart: () => void }) {
             </CardContent>
           </Card>
         </motion.div>
-        <motion.div
-          initial={{ opacity: 0, scale: 0.8 }}
-          animate={{ opacity: 1, scale: 1 }}
-          transition={{ delay: 0.4 }}
-          className="text-center"
-        >
-          <p className="text-xl sm:text-2xl">Game PIN:</p>
-          <p className="text-7xl sm:text-8xl font-bold tracking-widest text-quiz-blue">{pin}</p>
-        </motion.div>
+
       </div>
       <motion.div
         initial={{ opacity: 0, y: 20 }}
