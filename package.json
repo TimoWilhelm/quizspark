@@ -1,5 +1,5 @@
 {
-  "name": "quizspark-6zhrimgstefqftzwf__v7",
+  "name": "v1-quizspark-6zhrimgstefqftzwf__v7",
   "private": true,
   "version": "0.0.0",
   "type": "module",
@@ -9,8 +9,7 @@
     "lint": "eslint --cache -f json --quiet .",
     "preview": "bun run build && vite preview --host 0.0.0.0 --port ${PORT:-4173}",
     "deploy": "bun run build && wrangler deploy",
-    "cf-typegen": "wrangler types",
-    "prepare": "bun .bootstrap.js || true"
+    "cf-typegen": "wrangler types"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",
@@ -67,6 +66,7 @@
     "react-flow": "^1.0.3",
     "react-hook-form": "^7.60.0",
     "react-hotkeys-hook": "^5.1.0",
+    "react-qr-code": "^2.0.12",
     "react-resizable-panels": "^3.0.3",
     "react-router-dom": "6.30.0",
     "react-select": "^5.10.2",
