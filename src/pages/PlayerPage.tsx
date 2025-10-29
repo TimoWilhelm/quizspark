@@ -36,10 +36,10 @@ export function PlayerPage() {
       navigate('/join');
     }
     if (!playerId) {
-      setPlayerId(crypto.randomUUID());
+      setPlayerId(crypto.randomUUID()); // This is safe, it only runs if playerId is not in session storage
     }
   }, [gamePin, playerId, navigate, setPlayerId]);
-  const { isLoading, error, gameState } = useGamePolling(gamePin, isJoined);
+  const { isLoading, error, gameState } = useGamePolling(gamePin!, isJoined && !!gamePin);
   const currentQuestionIndex = gameState?.currentQuestionIndex;
   const questionOptionsCount = gameState?.questions[currentQuestionIndex ?? -1]?.options.length;
   useEffect(() => {
