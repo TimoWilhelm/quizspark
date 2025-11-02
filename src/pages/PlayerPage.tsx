@@ -15,15 +15,13 @@ export function PlayerPage() {
   const [searchParams] = useSearchParams();
   const urlGameId = searchParams.get('gameId');
   // Zustand state
-  const { gameState, gameId: sessionGameId, playerId, nickname, setGameState, setSession, clearSession } = useGameStore(s => ({
-    gameState: s.gameState,
-    gameId: s.gameId,
-    playerId: s.playerId,
-    nickname: s.nickname,
-    setGameState: s.setGameState,
-    setSession: s.setSession,
-    clearSession: s.clearSession,
-  }));
+  const gameState = useGameStore(s => s.gameState);
+  const sessionGameId = useGameStore(s => s.gameId);
+  const playerId = useGameStore(s => s.playerId);
+  const nickname = useGameStore(s => s.nickname);
+  const setGameState = useGameStore(s => s.setGameState);
+  const setSession = useGameStore(s => s.setSession);
+  const clearSession = useGameStore(s => s.clearSession);
   const [view, setView] = useState<View>('LOADING');
   const [isJoining, setIsJoining] = useState(false);
   const [submittedAnswer, setSubmittedAnswer] = useState<number | null>(null);
