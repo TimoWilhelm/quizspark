@@ -108,7 +108,8 @@ export class GlobalDurableObject extends DurableObject {
     return publicState;
   }
   async getFullGameState(): Promise<GameState | null> {
-    return this.ctx.storage.get<GameState>('game_state');
+    const state = await this.ctx.storage.get<GameState>('game_state');
+    return state ?? null;
   }
   async addPlayer(name: string, playerId: string): Promise<GameState | { error: string }> {
     const state = await this.getFullGameState();
@@ -121,7 +122,11 @@ export class GlobalDurableObject extends DurableObject {
     const newPlayer: Player = { id: playerId, name, score: 0, answered: false };
     state.players.push(newPlayer);
     await this.ctx.storage.put('game_state', state);
-    return this.getGameState();
+    const gameState = await this.getGameState();
+    if (!gameState) {
+      return { error: 'Game not found.' };
+    }
+    return gameState;
   }
   async startGame(): Promise<GameState | { error: string }> {
     const state = await this.getFullGameState();
@@ -131,7 +136,11 @@ export class GlobalDurableObject extends DurableObject {
     state.phase = 'QUESTION';
     state.questionStartTime = Date.now();
     await this.ctx.storage.put('game_state', state);
-    return this.getGameState();
+    const gameState = await this.getGameState();
+    if (!gameState) {
+      return { error: 'Game not found.' };
+    }
+    return gameState;
   }
   async submitAnswer(playerId: string, answerIndex: number): Promise<GameState | { error: string }> {
     const state = await this.getFullGameState();
@@ -170,7 +179,11 @@ export class GlobalDurableObject extends DurableObject {
       });
     }
     await this.ctx.storage.put('game_state', state);
-    return this.getGameState();
+    const gameState = await this.getGameState();
+    if (!gameState) {
+      return { error: 'Game not found.' };
+    }
+    return gameState;
   }
   async nextState(): Promise<GameState | { error: string }> {
     const state = await this.getFullGameState();
@@ -215,7 +228,11 @@ export class GlobalDurableObject extends DurableObject {
         return { error: 'Invalid state transition.' };
     }
     await this.ctx.storage.put('game_state', state);
-    return this.getGameState();
+    const gameState = await this.getGameState();
+    if (!gameState) {
+      return { error: 'Game not found.' };
+    }
+    return gameState;
   }
   async getCustomQuizzes(): Promise<Quiz[]> {
     return (await this.ctx.storage.get<Quiz[]>('custom_quizzes')) || [];

@@ -3,24 +3,22 @@ import { ArrowLeft, Database, Cpu } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Link } from 'react-router-dom';
-import type { DemoItem, ApiResponse } from '@shared/types';
+import type { ApiResponse } from '@shared/types';
 import { ThemeToggle } from '@/components/ThemeToggle';
 import { AppLayout } from '@/components/layout/AppLayout';
 
 export function DemoPage() {
   const [counter, setCounter] = useState<number>(0);
-  const [demoItems, setDemoItems] = useState<DemoItem[]>([]);
+
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    Promise.all([
-      fetch('/api/counter').then(res => res.json()),
-      fetch('/api/demo').then(res => res.json())
-    ]).then(([counterData, itemsData]: [ApiResponse<number>, ApiResponse<DemoItem[]>]) => {
-      if (counterData.success) setCounter(counterData.data || 0);
-      if (itemsData.success) setDemoItems(itemsData.data || []);
-      setLoading(false);
-    });
+    fetch('/api/counter')
+      .then(res => res.json())
+      .then((counterData: ApiResponse<number>) => {
+        if (counterData.success) setCounter(counterData.data || 0);
+        setLoading(false);
+      });
   }, []);
 
   const incrementCounter = async () => {
@@ -56,28 +54,7 @@ export function DemoPage() {
             <p className="text-muted-foreground">Simple showcase of Durable Object persistence</p>
             </header>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {/* Durable Object Storage Demo */}
-            <Card>
-                <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                    <Database className="h-5 w-5 text-blue-500" />
-                    Durable Object Storage
-                </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-3">
-                <p className="text-sm text-muted-foreground">
-                    Persistent data stored in Durable Object:
-                </p>
-                {demoItems.map((item) => (
-                    <div key={item.id} className="flex justify-between items-center p-2 border rounded">
-                    <span className="font-medium">{item.name}</span>
-                    <span className="text-muted-foreground">Value: {item.value}</span>
-                    </div>
-                ))}
-                </CardContent>
-            </Card>
-
+            <div className="grid grid-cols-1 gap-6">
             {/* Counter Demo */}
             <Card>
                 <CardHeader>
