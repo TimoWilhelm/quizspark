@@ -1,24 +1,4 @@
-import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '@/lib/utils';
-
-const containerVariants = {
-  hidden: { opacity: 0, scale: 0.8 },
-  visible: {
-    opacity: 1,
-    scale: 1,
-    transition: {
-      staggerChildren: 0.1,
-    },
-  },
-  exit: { opacity: 0, scale: 0.8 },
-};
-
-const buttonVariants = {
-  hidden: { opacity: 0, scale: 0.5 },
-  visible: { opacity: 1, scale: 1 },
-  exit: { opacity: 0, scale: 0.5, transition: { duration: 0.2 } },
-};
-
 const shapeColors = [
   'bg-quiz-red',    // Triangle
   'bg-quiz-blue',   // Diamond
@@ -37,42 +17,26 @@ interface PlayerAnswerScreenProps {
   optionIndices: number[];
 }
 export function PlayerAnswerScreen({ onAnswer, submittedAnswer, optionIndices }: PlayerAnswerScreenProps) {
-  const buttonsToShow = submittedAnswer === null
-    ? optionIndices
-    : optionIndices.filter(i => i === submittedAnswer);
   return (
-    <motion.div
-      className={cn(
-        "gap-4 w-full h-full",
-        submittedAnswer === null ? "grid grid-cols-2" : "flex items-center justify-center"
-      )}
-      key="answer-screen"
-      variants={containerVariants}
-      initial="hidden"
-      animate="visible"
-      exit="exit"
-      layout
+    <div
+      className="gap-4 w-full h-full grid grid-cols-2 grid-rows-2 animate-scale-in"
     >
-      <AnimatePresence>
-        {buttonsToShow.map((originalIndex) => (
-          <motion.button
-            key={originalIndex}
-            onClick={() => onAnswer(originalIndex)}
-            disabled={submittedAnswer !== null}
-            className={cn(
-              'rounded-2xl flex items-center justify-center shadow-lg transition-all duration-200',
-              shapeColors[originalIndex],
-              submittedAnswer === null ? 'hover:scale-105' : 'w-full h-full',
-              submittedAnswer === originalIndex && 'ring-4 ring-white ring-offset-4 ring-offset-slate-800'
-            )}
-            whileTap={{ scale: 0.9 }}
-            variants={buttonVariants}
-            layout
-          >
-            <svg viewBox="0 0 24 24" className="w-1/2 h-1/2 text-white fill-current"><path d={shapePaths[originalIndex]} /></svg>
-          </motion.button>
-        ))}
-      </AnimatePresence>
-    </motion.div>
+      {optionIndices.map((originalIndex) => (
+        <button
+          key={originalIndex}
+          onClick={() => onAnswer(originalIndex)}
+          disabled={submittedAnswer !== null}
+          className={cn(
+            'rounded-2xl flex items-center justify-center shadow-lg transition-all duration-300 ease-in-out',
+            shapeColors[originalIndex],
+            submittedAnswer === null && 'hover:scale-105 active:scale-95',
+            submittedAnswer !== null && originalIndex !== submittedAnswer && 'scale-0 opacity-0 pointer-events-none',
+            submittedAnswer === originalIndex && 'col-span-2 row-span-2 ring-4 ring-white ring-offset-4 ring-offset-slate-800'
+          )}
+        >
+          <svg viewBox="0 0 24 24" className="w-1/2 h-1/2 text-white fill-current"><path d={shapePaths[originalIndex]} /></svg>
+        </button>
+      ))}
+    </div>
   );
 }
