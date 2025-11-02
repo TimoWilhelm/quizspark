@@ -71,16 +71,13 @@ export class GlobalDurableObject extends DurableObject {
   async createGame(quizId?: string): Promise<GameState | { error: string }> {
     let questions: Question[] | undefined;
     if (quizId) {
-      // Check custom quizzes first
       const customQuiz = await this.getCustomQuizById(quizId);
       if (customQuiz) {
         questions = customQuiz.questions;
       } else {
-        // Fallback to predefined quizzes
         questions = QUIZZES[quizId];
       }
     }
-    // Default to general knowledge if no quizId or not found
     if (!questions) {
       questions = GENERAL_KNOWLEDGE_QUIZ;
     }
@@ -98,16 +95,23 @@ export class GlobalDurableObject extends DurableObject {
       currentQuestionIndex: 0,
       questionStartTime: 0,
       answers: [],
+      hostSecret: crypto.randomUUID(),
     };
     await this.ctx.storage.put('game_state', newGame);
     return newGame;
   }
   async getGameState(): Promise<GameState | null> {
     const state = await this.ctx.storage.get<GameState>('game_state');
-    return state || null;
+    if (!state) return null;
+    const publicState = { ...state };
+    delete publicState.hostSecret;
+    return publicState;
+  }
+  async getFullGameState(): Promise<GameState | null> {
+    return this.ctx.storage.get<GameState>('game_state');
   }
   async addPlayer(name: string, playerId: string): Promise<GameState | { error: string }> {
-    const state = await this.getGameState();
+    const state = await this.getFullGameState();
     if (!state || state.phase !== 'LOBBY') {
       return { error: 'Game not in LOBBY phase or does not exist.' };
     }
@@ -117,20 +121,20 @@ export class GlobalDurableObject extends DurableObject {
     const newPlayer: Player = { id: playerId, name, score: 0, answered: false };
     state.players.push(newPlayer);
     await this.ctx.storage.put('game_state', state);
-    return state;
+    return this.getGameState();
   }
   async startGame(): Promise<GameState | { error: string }> {
-    const state = await this.getGameState();
+    const state = await this.getFullGameState();
     if (!state || state.phase !== 'LOBBY') {
       return { error: 'Game not in LOBBY phase.' };
     }
     state.phase = 'QUESTION';
     state.questionStartTime = Date.now();
     await this.ctx.storage.put('game_state', state);
-    return state;
+    return this.getGameState();
   }
   async submitAnswer(playerId: string, answerIndex: number): Promise<GameState | { error: string }> {
-    const state = await this.getGameState();
+    const state = await this.getFullGameState();
     if (!state || state.phase !== 'QUESTION') {
       return { error: 'Not in QUESTION phase.' };
     }
@@ -147,38 +151,34 @@ export class GlobalDurableObject extends DurableObject {
     }
     const answer: Answer = { playerId, answerIndex, time: timeTaken };
     state.answers.push(answer);
-    // Auto-advance if all players have answered
     if (state.answers.length === state.players.length) {
       state.phase = 'REVEAL';
-      // Since we are auto-advancing, we need to calculate scores now.
-      // This logic is duplicated from the 'nextState' method's QUESTION case.
       const currentQuestion = state.questions[state.currentQuestionIndex];
       state.answers.forEach(ans => {
-        const player = state.players.find(p => p.id === ans.playerId);
-        if (player) {
+        const p = state.players.find(p => p.id === ans.playerId);
+        if (p) {
           const isCorrect = currentQuestion.correctAnswerIndex === ans.answerIndex;
           let score = 0;
           if (isCorrect) {
             const timeFactor = 1 - (ans.time / (QUESTION_TIME_LIMIT_MS * 2));
             score = Math.floor(1000 * timeFactor);
           }
-          player.score += score;
+          p.score += score;
           ans.isCorrect = isCorrect;
           ans.score = score;
         }
       });
     }
     await this.ctx.storage.put('game_state', state);
-    return state;
+    return this.getGameState();
   }
   async nextState(): Promise<GameState | { error: string }> {
-    const state = await this.getGameState();
+    const state = await this.getFullGameState();
     if (!state) {
       return { error: 'Game not found.' };
     }
     switch (state.phase) {
-      case 'QUESTION':
-        // Calculate scores for all submitted answers before revealing
+      case 'QUESTION': {
         const currentQuestion = state.questions[state.currentQuestionIndex];
         state.answers.forEach(answer => {
           const player = state.players.find(p => p.id === answer.playerId);
@@ -196,6 +196,7 @@ export class GlobalDurableObject extends DurableObject {
         });
         state.phase = 'REVEAL';
         break;
+      }
       case 'REVEAL':
         state.phase = 'LEADERBOARD';
         state.players.sort((a, b) => b.score - a.score);
@@ -214,9 +215,8 @@ export class GlobalDurableObject extends DurableObject {
         return { error: 'Invalid state transition.' };
     }
     await this.ctx.storage.put('game_state', state);
-    return state;
+    return this.getGameState();
   }
-  // --- Custom Quiz Methods ---
   async getCustomQuizzes(): Promise<Quiz[]> {
     return (await this.ctx.storage.get<Quiz[]>('custom_quizzes')) || [];
   }
@@ -227,18 +227,15 @@ export class GlobalDurableObject extends DurableObject {
   async saveCustomQuiz(quizData: Omit<Quiz, 'id'> & { id?: string }): Promise<Quiz> {
     const quizzes = await this.getCustomQuizzes();
     if (quizData.id) {
-      // Update existing quiz
       const index = quizzes.findIndex(q => q.id === quizData.id);
       if (index > -1) {
         quizzes[index] = { ...quizzes[index], ...quizData, id: quizData.id };
       } else {
-        // If ID provided but not found, treat as new (or throw error)
         const newQuiz = { ...quizData, id: crypto.randomUUID() };
         quizzes.push(newQuiz);
         return newQuiz;
       }
     } else {
-      // Create new quiz
       const newQuiz = { ...quizData, id: crypto.randomUUID() };
       quizzes.push(newQuiz);
     }

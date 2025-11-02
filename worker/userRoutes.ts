@@ -3,11 +3,9 @@ import { Env } from './core-utils';
 import { QUIZ_TOPICS } from './durableObject';
 import type { ApiResponse, GameState, QuizTopic, Quiz } from '@shared/types';
 export function userRoutes(app: Hono<{ Bindings: Env }>) {
-    // Get available predefined quizzes
     app.get('/api/quizzes', (c) => {
         return c.json({ success: true, data: QUIZ_TOPICS } satisfies ApiResponse<QuizTopic[]>);
     });
-    // --- Custom Quiz CRUD ---
     app.get('/api/quizzes/custom', async (c) => {
         const durableObjectStub = c.env.GlobalDurableObject.get(c.env.GlobalDurableObject.idFromName("global"));
         const data = await durableObjectStub.getCustomQuizzes();
@@ -47,8 +45,6 @@ export function userRoutes(app: Hono<{ Bindings: Env }>) {
         }
         return c.json({ success: true });
     });
-    // --- Game Management ---
-    // Create a new game
     app.post('/api/games', async (c) => {
         const { quizId } = await c.req.json<{ quizId?: string }>();
         const durableObjectStub = c.env.GlobalDurableObject.get(c.env.GlobalDurableObject.idFromName("global"));
@@ -58,7 +54,6 @@ export function userRoutes(app: Hono<{ Bindings: Env }>) {
         }
         return c.json({ success: true, data } satisfies ApiResponse<GameState>);
     });
-    // Get the current game state
     app.get('/api/games/:gameId', async (c) => {
         const durableObjectStub = c.env.GlobalDurableObject.get(c.env.GlobalDurableObject.idFromName("global"));
         const data = await durableObjectStub.getGameState();
@@ -67,7 +62,21 @@ export function userRoutes(app: Hono<{ Bindings: Env }>) {
         }
         return c.json({ success: true, data } satisfies ApiResponse<GameState>);
     });
-    // Player joins a game
+    app.post('/api/games/:gameId/host', async (c) => {
+        const { hostSecret } = await c.req.json<{ hostSecret: string }>();
+        if (!hostSecret) {
+            return c.json({ success: false, error: 'Host secret is required' }, 400);
+        }
+        const durableObjectStub = c.env.GlobalDurableObject.get(c.env.GlobalDurableObject.idFromName("global"));
+        const data = await durableObjectStub.getFullGameState();
+        if (!data) {
+            return c.json({ success: false, error: 'Game not found' }, 404);
+        }
+        if (data.hostSecret !== hostSecret) {
+            return c.json({ success: false, error: 'Forbidden' }, 403);
+        }
+        return c.json({ success: true, data } satisfies ApiResponse<GameState>);
+    });
     app.post('/api/games/:gameId/players', async (c) => {
         const { name, playerId } = await c.req.json<{ name: string, playerId: string }>();
         if (!name || !playerId) {
@@ -80,7 +89,6 @@ export function userRoutes(app: Hono<{ Bindings: Env }>) {
         }
         return c.json({ success: true, data } satisfies ApiResponse<GameState>);
     });
-    // Host starts the game
     app.post('/api/games/:gameId/start', async (c) => {
         const durableObjectStub = c.env.GlobalDurableObject.get(c.env.GlobalDurableObject.idFromName("global"));
         const data = await durableObjectStub.startGame();
@@ -89,7 +97,6 @@ export function userRoutes(app: Hono<{ Bindings: Env }>) {
         }
         return c.json({ success: true, data } satisfies ApiResponse<GameState>);
     });
-    // Player submits an answer
     app.post('/api/games/:gameId/answer', async (c) => {
         const { playerId, answerIndex } = await c.req.json<{ playerId: string, answerIndex: number }>();
         if (playerId === undefined || answerIndex === undefined) {
@@ -102,7 +109,6 @@ export function userRoutes(app: Hono<{ Bindings: Env }>) {
         }
         return c.json({ success: true, data } satisfies ApiResponse<GameState>);
     });
-    // Host advances to the next state (e.g., from question to leaderboard)
     app.post('/api/games/:gameId/next', async (c) => {
         const durableObjectStub = c.env.GlobalDurableObject.get(c.env.GlobalDurableObject.idFromName("global"));
         const data = await durableObjectStub.nextState();

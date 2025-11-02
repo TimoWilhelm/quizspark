@@ -8,6 +8,7 @@ import { Toaster, toast } from 'sonner';
 import type { ApiResponse, GameState, QuizTopic, Quiz } from '@shared/types';
 import { cn } from '@/lib/utils';
 import { motion } from 'framer-motion';
+import { useHostStore } from '@/lib/host-store';
 export function HomePage() {
   const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState(false);
@@ -15,6 +16,7 @@ export function HomePage() {
   const [predefinedQuizzes, setPredefinedQuizzes] = useState<QuizTopic[]>([]);
   const [customQuizzes, setCustomQuizzes] = useState<Quiz[]>([]);
   const [selectedQuizId, setSelectedQuizId] = useState<string | null>(null);
+  const addSecret = useHostStore(s => s.addSecret);
   const fetchQuizzes = async () => {
     setIsLoading(true);
     try {
@@ -57,8 +59,13 @@ export function HomePage() {
         if ('error' in result.data) {
           throw new Error((result.data as any).error);
         }
-        toast.success('New game created!');
-        navigate(`/host/${result.data.id}`);
+        if (result.data.id && result.data.hostSecret) {
+          addSecret(result.data.id, result.data.hostSecret);
+          toast.success('New game created!');
+          navigate(`/host/${result.data.id}`);
+        } else {
+          throw new Error('Game created, but missing ID or secret.');
+        }
       } else {
         throw new Error(result.error || 'Failed to create game');
       }

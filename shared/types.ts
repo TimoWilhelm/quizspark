@@ -31,6 +31,7 @@ export interface GameState {
   currentQuestionIndex: number;
   questionStartTime: number; // Unix timestamp in ms
   answers: Answer[];
+  hostSecret?: string;
 }
 export interface QuizTopic {
   id: string;

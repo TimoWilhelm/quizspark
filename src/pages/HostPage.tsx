@@ -1,8 +1,7 @@
 import React, { useCallback } from 'react';
-import { useParams } from 'react-router-dom';
-import { useGamePolling } from '@/hooks/useGamePolling';
+import { Link, useParams } from 'react-router-dom';
 import { useGameStore } from '@/lib/game-store';
-import { Loader2 } from 'lucide-react';
+import { Loader2, ShieldAlert } from 'lucide-react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { Toaster, toast } from 'sonner';
 import { HostLobby } from '@/components/game/host/HostLobby';
@@ -10,9 +9,11 @@ import { HostQuestion } from '@/components/game/host/HostQuestion';
 import { HostReveal } from '@/components/game/host/HostReveal';
 import { HostLeaderboard } from '@/components/game/host/HostLeaderboard';
 import { HostEnd } from '@/components/game/host/HostEnd';
+import { useHostGamePolling } from '@/hooks/useHostGamePolling';
+import { Button } from '@/components/ui/button';
 export function HostPage() {
   const { gameId } = useParams<{ gameId: string }>();
-  const { isLoading, error } = useGamePolling(gameId!);
+  const { isLoading, error } = useHostGamePolling(gameId!);
   const gameState = useGameStore(s => s.gameState);
   const handleNext = useCallback(async () => {
     try {
@@ -38,7 +39,16 @@ export function HostPage() {
     );
   }
   if (error) {
-    return <div className="min-h-screen w-full flex items-center justify-center bg-red-100 text-red-700">{error}</div>;
+    return (
+      <div className="min-h-screen w-full flex flex-col items-center justify-center bg-red-100 text-red-800 p-4">
+        <ShieldAlert className="h-16 w-16 mb-4" />
+        <h1 className="text-3xl font-bold mb-2">Access Denied</h1>
+        <p className="text-center mb-6">{error}</p>
+        <Button asChild>
+          <Link to="/">Return to Home</Link>
+        </Button>
+      </div>
+    );
   }
   if (!gameState) {
     return <div className="min-h-screen w-full flex items-center justify-center bg-slate-100">Game not found.</div>;
