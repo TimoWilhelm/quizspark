@@ -120,6 +120,12 @@ export class GlobalDurableObject extends DurableObject {
     if (!state || state.phase !== 'LOBBY') {
       return { error: 'Game not in LOBBY phase or does not exist.' };
     }
+    // Handle reconnection: if player already exists, just return the state
+    if (state.players.some(p => p.id === playerId)) {
+      const gameState = await this.getGameState();
+      if (!gameState) return { error: 'Game not found.' };
+      return gameState;
+    }
     if (state.players.some(p => p.name.toLowerCase() === name.toLowerCase())) {
       return { error: 'Player name already taken.' };
     }
