@@ -29,7 +29,7 @@ type QuizFormData = Omit<QuizFormInput, 'questions'> & {
 export function QuizEditorPage() {
   const { quizId } = useParams<{ quizId?: string }>();
   const navigate = useNavigate();
-  const { register, control, handleSubmit, reset, formState: { errors, isSubmitting } } = useForm<QuizFormInput>({
+  const { register, control, handleSubmit, reset, getValues, formState: { errors, isSubmitting } } = useForm<QuizFormInput>({
     resolver: zodResolver(quizSchema),
     defaultValues: { title: '', questions: [] },
   });
@@ -94,18 +94,29 @@ export function QuizEditorPage() {
   };
   const addQuestion = () => append({ text: '', options: ['', ''], correctAnswerIndex: '0' });
   const addOption = (qIndex: number) => {
-    const currentOptions = fields[qIndex].options;
-    if (currentOptions.length < 4) {
-      update(qIndex, { ...fields[qIndex], options: [...currentOptions, ''] });
+    const currentQuestion = getValues(`questions.${qIndex}`);
+    if (currentQuestion.options.length < 4) {
+      update(qIndex, {
+        ...currentQuestion,
+        options: [...currentQuestion.options, ''],
+      });
     }
   };
   const removeOption = (qIndex: number, oIndex: number) => {
-    const currentOptions = fields[qIndex].options;
-    if (currentOptions.length > 2) {
-      const newOptions = currentOptions.filter((_, i) => i !== oIndex);
-      const currentCorrect = parseInt(fields[qIndex].correctAnswerIndex, 10);
-      const newCorrect = currentCorrect >= oIndex ? Math.max(0, currentCorrect - 1) : currentCorrect;
-      update(qIndex, { ...fields[qIndex], options: newOptions, correctAnswerIndex: String(newCorrect) });
+    const currentQuestion = getValues(`questions.${qIndex}`);
+    if (currentQuestion.options.length > 2) {
+      const newOptions = currentQuestion.options.filter((_, i) => i !== oIndex);
+      const currentCorrect = parseInt(currentQuestion.correctAnswerIndex, 10);
+      const newCorrect = currentCorrect === oIndex
+        ? 0 // If the deleted option was correct, default to the first option
+        : currentCorrect > oIndex
+          ? currentCorrect - 1 // If a preceding option was deleted, shift index down
+          : currentCorrect;
+      update(qIndex, {
+        ...currentQuestion,
+        options: newOptions,
+        correctAnswerIndex: String(newCorrect),
+      });
     }
   };
   return (
@@ -157,11 +168,11 @@ export function QuizEditorPage() {
                     name={`questions.${qIndex}.correctAnswerIndex`}
                     render={({ field: { onChange, value } }) => (
                       <RadioGroup onValueChange={onChange} value={String(value)} className="space-y-2 mt-2">
-                        {field.options.map((_, oIndex) => (
-                          <div key={oIndex} className="flex items-center gap-2">
+                        {getValues(`questions.${qIndex}.options`).map((_, oIndex) => (
+                          <div key={`${field.id}-option-${oIndex}`} className="flex items-center gap-2">
                             <RadioGroupItem value={String(oIndex)} id={`q${qIndex}o${oIndex}`} />
                             <Input {...register(`questions.${qIndex}.options.${oIndex}`)} placeholder={`Option ${oIndex + 1}`} className="flex-grow" />
-                            {field.options.length > 2 && (
+                            {getValues(`questions.${qIndex}.options`).length > 2 && (
                               <Button type="button" variant="ghost" size="icon" onClick={() => removeOption(qIndex, oIndex)} className="text-muted-foreground hover:text-destructive">
                                 <Trash2 className="w-4 h-4" />
                               </Button>
@@ -174,7 +185,7 @@ export function QuizEditorPage() {
                   {errors.questions?.[qIndex]?.options && <p className="text-red-500 text-sm mt-1">Each option must have text.</p>}
                   {errors.questions?.[qIndex]?.correctAnswerIndex && <p className="text-red-500 text-sm mt-1">{errors.questions[qIndex]?.correctAnswerIndex?.message}</p>}
                 </div>
-                {field.options.length < 4 && (
+                {getValues(`questions.${qIndex}.options`).length < 4 && (
                   <Button type="button" variant="outline" onClick={() => addOption(qIndex)}>
                     <PlusCircle className="mr-2 h-4 w-4" /> Add Option
                   </Button>
