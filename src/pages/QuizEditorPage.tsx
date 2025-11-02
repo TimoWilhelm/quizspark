@@ -15,7 +15,7 @@ const questionSchema = z.object({
   text: z.string().min(1, 'Question text is required.'),
   options: z.array(z.string().min(1, 'Option text is required.')).min(2).max(4),
   correctAnswerIndex: z.string({
-    message: "A correct answer must be selected.",
+    required_error: "A correct answer must be selected.",
   }).transform(val => parseInt(val, 10)).pipe(z.number().int().min(0)),
 });
 const quizSchema = z.object({
@@ -27,7 +27,7 @@ type QuizFormData = z.output<typeof quizSchema>;
 export function QuizEditorPage() {
   const { quizId } = useParams<{ quizId?: string }>();
   const navigate = useNavigate();
-  const { register, control, handleSubmit, reset, formState: { errors, isSubmitting } } = useForm<QuizFormInput, any, QuizFormData>({
+  const { register, control, handleSubmit, reset, formState: { errors, isSubmitting } } = useForm<QuizFormInput>({
     resolver: zodResolver(quizSchema),
     defaultValues: { title: '', questions: [] },
   });
@@ -62,14 +62,16 @@ export function QuizEditorPage() {
       reset({ title: '', questions: [{ text: '', options: ['', ''], correctAnswerIndex: '0' }] });
     }
   }, [quizId, reset, navigate]);
-  const onSubmit: SubmitHandler<QuizFormData> = async (data) => {
+  const onSubmit: SubmitHandler<QuizFormInput> = async (data) => {
     try {
+      // The resolver already transformed the data, so we can cast it to the output type
+      const processedData = data as unknown as QuizFormData;
       const url = quizId ? `/api/quizzes/custom/${quizId}` : '/api/quizzes/custom';
       const method = quizId ? 'PUT' : 'POST';
       const response = await fetch(url, {
         method,
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...data, id: quizId }),
+        body: JSON.stringify({ ...processedData, id: quizId }),
       });
       const result = await response.json() as ApiResponse<Quiz>;
       if (!response.ok || !result.success) {

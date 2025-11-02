@@ -156,6 +156,10 @@ export class GlobalDurableObject extends DurableObject {
     player.score += score;
     const answer: Answer = { playerId, answerIndex, time: timeTaken, isCorrect, score };
     state.answers.push(answer);
+    // Auto-advance if all players have answered
+    if (state.answers.length === state.players.length) {
+      state.phase = 'REVEAL';
+    }
     await this.ctx.storage.put('game_state', state);
     return state;
   }
