@@ -1,6 +1,6 @@
 # QuizSpark
 
-[cloudflarebutton]
+[![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/TimoWilhelm/quizspark)
 
 QuizSpark is a real-time, interactive quiz game platform for engaging audiences, inspired by Kahoot and built on Cloudflare Workers and Durable Objects.
 
@@ -91,7 +91,7 @@ This project is configured for easy deployment to Cloudflare's global network.
 2.  **One-Click Deploy:**
     Alternatively, you can deploy this project to Cloudflare with a single click.
 
-    [cloudflarebutton]
+    [![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/TimoWilhelm/quizspark)
 
 ## License
 
