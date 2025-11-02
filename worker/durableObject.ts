@@ -138,7 +138,6 @@ export class GlobalDurableObject extends DurableObject {
     if (!player) {
       return { error: 'Player not found.' };
     }
-    // Check if player has already answered THIS question.
     if (state.answers.some(a => a.playerId === playerId)) {
       return { error: 'Player has already answered.' };
     }
@@ -146,19 +145,28 @@ export class GlobalDurableObject extends DurableObject {
     if (timeTaken > QUESTION_TIME_LIMIT_MS) {
       return { error: 'Time is up for this question.' };
     }
-    const currentQuestion = state.questions[state.currentQuestionIndex];
-    const isCorrect = currentQuestion.correctAnswerIndex === answerIndex;
-    let score = 0;
-    if (isCorrect) {
-      const timeFactor = 1 - (timeTaken / (QUESTION_TIME_LIMIT_MS * 2));
-      score = Math.floor(1000 * timeFactor);
-    }
-    player.score += score;
-    const answer: Answer = { playerId, answerIndex, time: timeTaken, isCorrect, score };
+    const answer: Answer = { playerId, answerIndex, time: timeTaken };
     state.answers.push(answer);
     // Auto-advance if all players have answered
     if (state.answers.length === state.players.length) {
       state.phase = 'REVEAL';
+      // Since we are auto-advancing, we need to calculate scores now.
+      // This logic is duplicated from the 'nextState' method's QUESTION case.
+      const currentQuestion = state.questions[state.currentQuestionIndex];
+      state.answers.forEach(ans => {
+        const player = state.players.find(p => p.id === ans.playerId);
+        if (player) {
+          const isCorrect = currentQuestion.correctAnswerIndex === ans.answerIndex;
+          let score = 0;
+          if (isCorrect) {
+            const timeFactor = 1 - (ans.time / (QUESTION_TIME_LIMIT_MS * 2));
+            score = Math.floor(1000 * timeFactor);
+          }
+          player.score += score;
+          ans.isCorrect = isCorrect;
+          ans.score = score;
+        }
+      });
     }
     await this.ctx.storage.put('game_state', state);
     return state;
@@ -170,6 +178,22 @@ export class GlobalDurableObject extends DurableObject {
     }
     switch (state.phase) {
       case 'QUESTION':
+        // Calculate scores for all submitted answers before revealing
+        const currentQuestion = state.questions[state.currentQuestionIndex];
+        state.answers.forEach(answer => {
+          const player = state.players.find(p => p.id === answer.playerId);
+          if (player) {
+            const isCorrect = currentQuestion.correctAnswerIndex === answer.answerIndex;
+            let score = 0;
+            if (isCorrect) {
+              const timeFactor = 1 - (answer.time / (QUESTION_TIME_LIMIT_MS * 2));
+              score = Math.floor(1000 * timeFactor);
+            }
+            player.score += score;
+            answer.isCorrect = isCorrect;
+            answer.score = score;
+          }
+        });
         state.phase = 'REVEAL';
         break;
       case 'REVEAL':

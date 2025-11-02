@@ -18,8 +18,8 @@ export interface Answer {
   playerId: string;
   answerIndex: number;
   time: number; // Time in ms from question start
-  isCorrect: boolean;
-  score: number;
+  isCorrect?: boolean;
+  score?: number;
 }
 export type GamePhase = 'LOBBY' | 'QUESTION' | 'REVEAL' | 'LEADERBOARD' | 'END';
 export interface GameState {
