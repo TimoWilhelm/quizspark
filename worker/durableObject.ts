@@ -88,7 +88,7 @@ export class GlobalDurableObject extends DurableObject {
     const adj = adjectives[Math.floor(Math.random() * adjectives.length)];
     const color = colors[Math.floor(Math.random() * colors.length)];
     const animal = animals[Math.floor(Math.random() * animals.length)];
-    const gameId = `${adj}-${color}-${animal}`;
+    const gameId = `${adj}-${color}-${animal}`.toLowerCase();
     const pin = Math.floor(100000 + Math.random() * 900000).toString();
     const newGame: GameState = {
       id: gameId,
