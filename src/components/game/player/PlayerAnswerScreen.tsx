@@ -1,5 +1,24 @@
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '@/lib/utils';
+
+const containerVariants = {
+  hidden: { opacity: 0, scale: 0.8 },
+  visible: {
+    opacity: 1,
+    scale: 1,
+    transition: {
+      staggerChildren: 0.1,
+    },
+  },
+  exit: { opacity: 0, scale: 0.8 },
+};
+
+const buttonVariants = {
+  hidden: { opacity: 0, scale: 0.5 },
+  visible: { opacity: 1, scale: 1 },
+  exit: { opacity: 0, scale: 0.5, transition: { duration: 0.2 } },
+};
+
 const shapeColors = [
   'bg-quiz-red',    // Triangle
   'bg-quiz-blue',   // Diamond
@@ -28,13 +47,14 @@ export function PlayerAnswerScreen({ onAnswer, submittedAnswer, optionIndices }:
         submittedAnswer === null ? "grid grid-cols-2" : "flex items-center justify-center"
       )}
       key="answer-screen"
-      initial={{ opacity: 0, scale: 0.8 }}
-      animate={{ opacity: 1, scale: 1 }}
-      exit={{ opacity: 0, scale: 0.8 }}
+      variants={containerVariants}
+      initial="hidden"
+      animate="visible"
+      exit="exit"
       layout
     >
       <AnimatePresence>
-        {buttonsToShow.map((originalIndex, displayIndex) => (
+        {buttonsToShow.map((originalIndex) => (
           <motion.button
             key={originalIndex}
             onClick={() => onAnswer(originalIndex)}
@@ -46,10 +66,7 @@ export function PlayerAnswerScreen({ onAnswer, submittedAnswer, optionIndices }:
               submittedAnswer === originalIndex && 'ring-4 ring-white ring-offset-4 ring-offset-slate-800'
             )}
             whileTap={{ scale: 0.9 }}
-            initial={{ opacity: 0, scale: 0.5 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.5, transition: { duration: 0.2 } }}
-            transition={{ delay: displayIndex * 0.1 }}
+            variants={buttonVariants}
             layout
           >
             <svg viewBox="0 0 24 24" className="w-1/2 h-1/2 text-white fill-current"><path d={shapePaths[originalIndex]} /></svg>
