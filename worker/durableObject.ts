@@ -1,5 +1,6 @@
 import { DurableObject } from "cloudflare:workers";
 import type { GameState, Question, Player, Answer, QuizTopic, Quiz } from '@shared/types';
+import { adjectives, colors, animals } from './words';
 const GENERAL_KNOWLEDGE_QUIZ: Question[] = [
   {
     text: "What is the capital of France?",
@@ -84,7 +85,10 @@ export class GlobalDurableObject extends DurableObject {
     if (questions.length === 0) {
       return { error: "Cannot start a game with an empty quiz." };
     }
-    const gameId = crypto.randomUUID();
+    const adj = adjectives[Math.floor(Math.random() * adjectives.length)];
+    const color = colors[Math.floor(Math.random() * colors.length)];
+    const animal = animals[Math.floor(Math.random() * animals.length)];
+    const gameId = `${adj}-${color}-${animal}`;
     const pin = Math.floor(100000 + Math.random() * 900000).toString();
     const newGame: GameState = {
       id: gameId,
