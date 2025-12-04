@@ -1,3 +1,2 @@
-
-# Bootstrap marker
-.bootstrap-complete
+node_modules
+.wrangler

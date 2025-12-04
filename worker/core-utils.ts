@@ -7,5 +7,5 @@ import { GlobalDurableObject } from './durableObject';
 export { GlobalDurableObject };
 
 export type Env = {
-    GlobalDurableObject: DurableObjectNamespace<GlobalDurableObject>;
-}
+	GlobalDurableObject: DurableObjectNamespace<GlobalDurableObject>;
+};

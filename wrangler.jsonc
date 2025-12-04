@@ -2,9 +2,9 @@
  * Wrangler config for the Cloudflare Durable Object template
  * STRICTLY DO NOT MODIFY THIS FILE - Hidden from AI to prevent breaking core functionality
  */
- {
+{
 	"$schema": "node_modules/wrangler/config-schema.json",
-	"name": "quizspark-6zhrimgstefqftzwf__v7",
+	"name": "timoot",
 	"main": "worker/index.ts",
 	"compatibility_date": "2025-04-24",
 	"assets": {
@@ -14,20 +14,18 @@
 	"observability": {
 		"enabled": true
 	},
-    "durable_objects": {
-      "bindings": [
-        {
-          "name": "GlobalDurableObject",
-          "class_name": "GlobalDurableObject"
-        }
-      ]
-    },
-    "migrations": [
-      {
-        "tag": "v1",
-        "new_sqlite_classes": [
-          "GlobalDurableObject"
-        ]
-      }
-    ]
+	"durable_objects": {
+		"bindings": [
+			{
+				"name": "GlobalDurableObject",
+				"class_name": "GlobalDurableObject"
+			}
+		]
+	},
+	"migrations": [
+		{
+			"tag": "v1",
+			"new_sqlite_classes": ["GlobalDurableObject"]
+		}
+	]
 }
