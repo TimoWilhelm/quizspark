@@ -263,7 +263,7 @@ export function HomePage() {
 													<Label htmlFor="ai-prompt">Topic or Prompt</Label>
 													<Input
 														id="ai-prompt"
-														placeholder="e.g., World War II history, JavaScript basics, Famous artists..."
+														placeholder="JavaScript basics, Famous artists, Holiday movies..."
 														value={aiPrompt}
 														onChange={(e) => setAiPrompt(e.target.value)}
 														onKeyDown={(e) => e.key === 'Enter' && !isGenerating && handleGenerateAiQuiz()}
