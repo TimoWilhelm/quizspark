@@ -1,4 +1,5 @@
-import { Users } from 'lucide-react';
+import { Users, Copy, Check } from 'lucide-react';
+import { useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -12,6 +13,13 @@ interface HostLobbyProps {
 
 export function HostLobby({ onStart, players, gameId }: HostLobbyProps) {
 	const joinUrl = `${window.location.origin}/play?gameId=${gameId}`;
+	const [copied, setCopied] = useState(false);
+
+	const copyToClipboard = async () => {
+		await navigator.clipboard.writeText(joinUrl);
+		setCopied(true);
+		setTimeout(() => setCopied(false), 2000);
+	};
 	return (
 		<div className="flex-grow flex flex-col items-center justify-center p-4 sm:p-8 space-y-6">
 			<motion.h1 initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} className="text-4xl md:text-5xl font-bold text-center">
@@ -25,7 +33,20 @@ export function HostLobby({ onStart, players, gameId }: HostLobbyProps) {
 						</CardHeader>
 						<CardContent className="p-0">
 							<QRCode value={joinUrl} size={256} />
-							<p className="mt-4 text-xs sm:text-sm text-muted-foreground break-all">{joinUrl}</p>
+							<div className="mt-4 flex items-center justify-center gap-2">
+								<p className="text-xs sm:text-sm text-muted-foreground break-all">{joinUrl}</p>
+								<button
+									onClick={copyToClipboard}
+									className="p-1.5 rounded-md hover:bg-muted transition-colors flex-shrink-0"
+									title="Copy link"
+								>
+									{copied ? (
+										<Check className="w-4 h-4 text-green-500" />
+									) : (
+										<Copy className="w-4 h-4 text-muted-foreground" />
+									)}
+								</button>
+							</div>
 						</CardContent>
 					</Card>
 				</motion.div>

@@ -1,5 +1,5 @@
 import React from 'react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 
 const shapeColors = [
 	'bg-quiz-red', // Triangle
@@ -13,6 +13,144 @@ const shapePaths = [
 	'M22 12c0 5.523-4.477 10-10 10S2 17.523 2 12 6.477 2 12 2s10 4.477 10 10z', // Circle
 	'M2 2h20v20H2V2z', // Square
 ];
+
+interface CountdownTimerProps {
+	timeLeft: number;
+	totalTime: number;
+}
+
+function CountdownTimer({ timeLeft, totalTime }: CountdownTimerProps) {
+	const progress = timeLeft / totalTime;
+	const isUrgent = timeLeft <= 5;
+	const isCritical = timeLeft <= 3;
+
+	// Circle properties
+	const size = 120;
+	const strokeWidth = 8;
+	const radius = (size - strokeWidth) / 2;
+	const circumference = 2 * Math.PI * radius;
+	const strokeDashoffset = circumference * (1 - progress);
+
+	// Color transitions based on time remaining
+	const getColor = () => {
+		if (timeLeft <= 3) return { stroke: '#dc2626', text: 'text-red-600', glow: 'rgba(220, 38, 38, 0.5)' };
+		if (timeLeft <= 5) return { stroke: '#f59e0b', text: 'text-amber-500', glow: 'rgba(245, 158, 11, 0.4)' };
+		if (timeLeft <= 10) return { stroke: '#eab308', text: 'text-yellow-500', glow: 'rgba(234, 179, 8, 0.3)' };
+		return { stroke: '#22c55e', text: 'text-green-500', glow: 'rgba(34, 197, 94, 0.3)' };
+	};
+
+	const colors = getColor();
+
+	return (
+		<motion.div
+			className="relative"
+			animate={
+				isCritical
+					? {
+							scale: [1, 1.05, 1],
+							rotate: [-1, 1, -1],
+						}
+					: isUrgent
+						? { scale: [1, 1.02, 1] }
+						: {}
+			}
+			transition={
+				isCritical
+					? { duration: 0.3, repeat: Infinity, ease: 'easeInOut' }
+					: isUrgent
+						? { duration: 0.5, repeat: Infinity, ease: 'easeInOut' }
+						: {}
+			}
+		>
+			{/* Glow effect for urgency */}
+			<AnimatePresence>
+				{isUrgent && (
+					<motion.div
+						initial={{ opacity: 0 }}
+						animate={{ opacity: [0.5, 1, 0.5] }}
+						exit={{ opacity: 0 }}
+						transition={{ duration: 0.8, repeat: Infinity, ease: 'easeInOut' }}
+						className="absolute inset-0 rounded-full"
+						style={{
+							boxShadow: `0 0 ${isCritical ? '40px' : '25px'} ${colors.glow}`,
+						}}
+					/>
+				)}
+			</AnimatePresence>
+
+			{/* Background circle container */}
+			<div
+				className="relative bg-white rounded-full shadow-lg flex items-center justify-center"
+				style={{ width: size, height: size }}
+			>
+				{/* SVG Progress Ring */}
+				<svg
+					className="absolute inset-0 -rotate-90"
+					width={size}
+					height={size}
+				>
+					{/* Background track */}
+					<circle
+						cx={size / 2}
+						cy={size / 2}
+						r={radius}
+						fill="none"
+						stroke="#e5e7eb"
+						strokeWidth={strokeWidth}
+					/>
+					{/* Progress arc */}
+					<motion.circle
+						cx={size / 2}
+						cy={size / 2}
+						r={radius}
+						fill="none"
+						stroke={colors.stroke}
+						strokeWidth={strokeWidth}
+						strokeLinecap="round"
+						strokeDasharray={circumference}
+						initial={{ strokeDashoffset: 0 }}
+						animate={{ strokeDashoffset }}
+						transition={{ duration: 0.25, ease: 'linear' }}
+					/>
+				</svg>
+
+				{/* Timer number */}
+				<AnimatePresence mode="wait">
+					<motion.span
+						key={timeLeft}
+						initial={{ scale: 1.4, opacity: 0, y: -10 }}
+						animate={{ scale: 1, opacity: 1, y: 0 }}
+						exit={{ scale: 0.8, opacity: 0, y: 10 }}
+						transition={{ type: 'spring', stiffness: 500, damping: 30 }}
+						className={`text-4xl sm:text-5xl font-bold tabular-nums ${colors.text} transition-colors duration-300`}
+					>
+						{timeLeft}
+					</motion.span>
+				</AnimatePresence>
+			</div>
+
+			{/* Pulse rings for critical time */}
+			<AnimatePresence>
+				{isCritical && (
+					<>
+						<motion.div
+							initial={{ scale: 1, opacity: 0.6 }}
+							animate={{ scale: 1.5, opacity: 0 }}
+							transition={{ duration: 1, repeat: Infinity, ease: 'easeOut' }}
+							className="absolute inset-0 rounded-full border-2 border-red-500"
+						/>
+						<motion.div
+							initial={{ scale: 1, opacity: 0.4 }}
+							animate={{ scale: 1.8, opacity: 0 }}
+							transition={{ duration: 1, repeat: Infinity, ease: 'easeOut', delay: 0.3 }}
+							className="absolute inset-0 rounded-full border-2 border-red-400"
+						/>
+					</>
+				)}
+			</AnimatePresence>
+		</motion.div>
+	);
+}
 
 interface HostQuestionProps {
 	onNext: () => void;
@@ -42,16 +180,17 @@ export function HostQuestion({
 
 	React.useEffect(() => {
 		const timer = setInterval(() => {
-			const elapsed = (Date.now() - startTime) / 1000;
-			const remaining = Math.max(0, timeLimitSec - elapsed);
-			setTimeLeft(Math.ceil(remaining));
-			if (remaining <= 0) {
+			const elapsedMs = Date.now() - startTime;
+			const elapsedSeconds = Math.floor(elapsedMs / 1000);
+			const remaining = Math.max(0, timeLimitSec - elapsedSeconds);
+			setTimeLeft(remaining);
+			if (elapsedMs >= timeLimitMs) {
 				clearInterval(timer);
 				onNext();
 			}
-		}, 250);
+		}, 100);
 		return () => clearInterval(timer);
-	}, [startTime, timeLimitSec, onNext]);
+	}, [startTime, timeLimitSec, timeLimitMs, onNext]);
 	return (
 		<div className="flex-grow flex flex-col p-4 sm:p-8">
 			<div className="flex justify-between items-center mb-4">
@@ -63,15 +202,7 @@ export function HostQuestion({
 						{answeredCount}/{totalPlayers} answered
 					</span>
 				</div>
-				<motion.div
-					key={timeLeft}
-					initial={{ scale: 1.2, opacity: 0 }}
-					animate={{ scale: 1, opacity: 1 }}
-					transition={{ type: 'spring', stiffness: 500, damping: 30 }}
-					className="text-4xl sm:text-5xl font-bold bg-white rounded-full w-20 h-20 sm:w-24 sm:h-24 flex items-center justify-center shadow-lg"
-				>
-					{timeLeft}
-				</motion.div>
+				<CountdownTimer timeLeft={timeLeft} totalTime={timeLimitSec} />
 			</div>
 			<div className="flex-grow center bg-white rounded-2xl shadow-lg p-4 sm:p-8 mb-4 sm:mb-8">
 				<h2 className="text-3xl sm:text-5xl font-bold text-center">{questionText}</h2>
