@@ -52,7 +52,7 @@ export function HostEnd({ leaderboard }: HostEndProps) {
 				<Button
 					onClick={() => (window.location.href = '/')}
 					size="lg"
-					className="bg-quiz-blue text-white text-2xl font-bold px-12 py-8 rounded-2xl"
+					className="bg-quiz-orange text-white text-2xl font-bold px-12 py-8 rounded-2xl"
 				>
 					Play Again
 				</Button>

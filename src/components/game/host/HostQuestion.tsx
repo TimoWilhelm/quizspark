@@ -1,11 +1,12 @@
 import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 
+// Colorblind-safe palette - vibrant yet readable
 const shapeColors = [
-	'bg-quiz-red', // Triangle
-	'bg-quiz-blue', // Diamond
-	'bg-quiz-yellow', // Circle
-	'bg-quiz-pink', // Square
+	'bg-[#F59E0B]', // Triangle - Golden Amber
+	'bg-[#3B82F6]', // Diamond - Sky Blue
+	'bg-[#14B8A6]', // Circle - Cyan Teal
+	'bg-[#EC4899]', // Square - Hot Pink
 ];
 const shapePaths = [
 	'M12 2L2 22h20L12 2z', // Triangle

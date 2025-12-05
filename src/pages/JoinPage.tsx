@@ -35,7 +35,7 @@ export function JoinPage() {
 							className="text-center text-4xl h-20 font-bold tracking-[1em]"
 							maxLength={6}
 						/>
-						<Button type="submit" className="w-full text-xl py-6 rounded-xl bg-quiz-blue hover:bg-quiz-blue/90" size="lg">
+						<Button type="submit" className="w-full text-xl py-6 rounded-xl bg-quiz-orange hover:bg-quiz-orange/90" size="lg">
 							Enter
 						</Button>
 					</form>

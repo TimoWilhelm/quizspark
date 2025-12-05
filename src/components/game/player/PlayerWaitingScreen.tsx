@@ -43,7 +43,7 @@ function ConfettiParticle({ delay, x, color }: { delay: number; x: number; color
 // Celebration confetti animation
 function CelebrationConfetti() {
 	const particles = useMemo(() => {
-		const colors = ['#FFD700', '#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEAA7', '#DDA0DD', '#98D8C8'];
+		const colors = ['#FBBF24', '#F59E0B', '#60A5FA', '#3B82F6', '#2DD4BF', '#14B8A6', '#F472B6', '#EC4899'];
 		return Array.from({ length: 50 }, (_, i) => ({
 			id: i,
 			delay: Math.random() * 0.5,
@@ -151,7 +151,7 @@ export function PlayerWaitingScreen({ phase, answerResult, finalScore, playerId,
 						<h2 className="text-4xl font-bold mb-4">Current Standings</h2>
 						{myRank > 0 && (
 							<p className="text-2xl mb-6">
-								You are in <span className="font-bold text-quiz-yellow">#{myRank}</span> place!
+								You are in <span className="font-bold text-quiz-gold">#{myRank}</span> place!
 							</p>
 						)}
 						<ul className="space-y-2 text-lg">
@@ -194,7 +194,7 @@ export function PlayerWaitingScreen({ phase, answerResult, finalScore, playerId,
 						) : null}
 
 						<motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.8 }} className="text-2xl mt-4">
-							Final score: <span className="font-bold text-quiz-yellow">{finalScore}</span>
+							Final score: <span className="font-bold text-quiz-gold">{finalScore}</span>
 						</motion.p>
 					</div>
 				);

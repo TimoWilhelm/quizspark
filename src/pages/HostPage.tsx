@@ -26,7 +26,7 @@ export function HostPage() {
 	if (isConnecting && !isConnected) {
 		return (
 			<div className="min-h-screen w-full flex items-center justify-center bg-slate-100">
-				<Loader2 className="h-16 w-16 animate-spin text-quiz-blue" />
+				<Loader2 className="h-16 w-16 animate-spin text-quiz-orange" />
 			</div>
 		);
 	}

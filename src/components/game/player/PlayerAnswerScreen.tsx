@@ -1,11 +1,12 @@
 import { motion, AnimatePresence } from 'framer-motion';
 import { useState, useEffect } from 'react';
 
+// Colorblind-safe palette - vibrant yet readable (safe for deuteranopia, protanopia, tritanopia)
 const shapeGradients = [
-	'linear-gradient(135deg, #ef4444 0%, #dc2626 50%, #b91c1c 100%)', // Triangle - Red
-	'linear-gradient(135deg, #3b82f6 0%, #2563eb 50%, #1d4ed8 100%)', // Diamond - Blue
-	'linear-gradient(135deg, #facc15 0%, #eab308 50%, #ca8a04 100%)', // Circle - Yellow
-	'linear-gradient(135deg, #ec4899 0%, #db2777 50%, #be185d 100%)', // Square - Pink
+	'linear-gradient(135deg, #FBBF24 0%, #F59E0B 50%, #D97706 100%)', // Triangle - Golden Amber
+	'linear-gradient(135deg, #60A5FA 0%, #3B82F6 50%, #2563EB 100%)', // Diamond - Sky Blue
+	'linear-gradient(135deg, #2DD4BF 0%, #14B8A6 50%, #0D9488 100%)', // Circle - Cyan Teal
+	'linear-gradient(135deg, #F472B6 0%, #EC4899 50%, #DB2777 100%)', // Square - Hot Pink
 ];
 
 const shapePaths = [
@@ -15,7 +16,7 @@ const shapePaths = [
 	'M2 2h20v20H2V2z', // Square
 ];
 
-const glowColors = ['#ef4444', '#3b82f6', '#facc15', '#ec4899'];
+const glowColors = ['#F59E0B', '#3B82F6', '#14B8A6', '#EC4899'];
 
 interface PlayerAnswerScreenProps {
 	onAnswer: (index: number) => void;
@@ -77,7 +78,7 @@ export function PlayerAnswerScreen({ onAnswer, submittedAnswer, optionIndices }:
 						key={originalIndex}
 						onClick={() => submittedAnswer === null && onAnswer(originalIndex)}
 						disabled={submittedAnswer !== null}
-						initial={false}
+						initial={{ opacity: 0, scale: 0.8 }}
 						animate={
 							isSelected
 								? {
@@ -133,8 +134,9 @@ export function PlayerAnswerScreen({ onAnswer, submittedAnswer, optionIndices }:
 										}
 									: {
 											type: 'spring',
-											stiffness: 300,
-											damping: 25,
+											stiffness: 500,
+											damping: 28,
+											delay: displayIndex * 0.03,
 										}
 						}
 						className="absolute rounded-2xl flex items-center justify-center overflow-hidden cursor-pointer"

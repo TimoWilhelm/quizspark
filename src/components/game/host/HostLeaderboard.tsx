@@ -25,7 +25,7 @@ export function HostLeaderboard({ onNext, leaderboard, isLastQuestion }: HostLea
 				animate={{ opacity: 1, y: 0 }}
 				className="text-5xl sm:text-6xl font-bold flex items-center gap-4"
 			>
-				<Trophy className="w-12 h-12 sm:w-16 sm:h-16 text-quiz-yellow" /> Leaderboard
+				<Trophy className="w-12 h-12 sm:w-16 sm:h-16 text-quiz-gold" /> Leaderboard
 			</motion.h1>
 			<Card className="w-full max-w-2xl shadow-lg rounded-2xl">
 				<CardContent className="p-0">
@@ -55,7 +55,7 @@ export function HostLeaderboard({ onNext, leaderboard, isLastQuestion }: HostLea
 				</CardContent>
 			</Card>
 			<motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.8 }}>
-				<Button onClick={onNext} size="lg" className="bg-quiz-blue text-white text-2xl font-bold px-12 py-8 rounded-2xl">
+				<Button onClick={onNext} size="lg" className="bg-quiz-orange text-white text-2xl font-bold px-12 py-8 rounded-2xl">
 					{isLastQuestion ? 'Final Results' : 'Next Question'}
 				</Button>
 			</motion.div>

@@ -63,7 +63,7 @@ export function HostLobby({ onStart, players, gameId }: HostLobbyProps) {
 									animate={{ opacity: 1, scale: 1 }}
 									exit={{ opacity: 0, scale: 0.5 }}
 									layout
-									className="bg-quiz-pink text-white font-bold py-2 px-4 rounded-lg shadow"
+									className="bg-quiz-orange text-white font-bold py-2 px-4 rounded-lg shadow"
 								>
 									{p.name}
 								</motion.div>
@@ -76,7 +76,7 @@ export function HostLobby({ onStart, players, gameId }: HostLobbyProps) {
 				<Button
 					onClick={onStart}
 					size="lg"
-					className="bg-quiz-blue text-white text-2xl font-bold px-12 py-8 rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 active:scale-95"
+					className="bg-quiz-orange text-white text-2xl font-bold px-12 py-8 rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 active:scale-95"
 					disabled={players.length < 1}
 				>
 					Start Game

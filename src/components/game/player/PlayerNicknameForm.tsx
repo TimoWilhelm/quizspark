@@ -54,7 +54,7 @@ export function PlayerNicknameForm({ onJoin, isLoading }: PlayerNicknameFormProp
 						</div>
 						<Button
 							type="submit"
-							className="w-full text-xl py-6 rounded-xl bg-quiz-blue hover:bg-quiz-blue/90"
+							className="w-full text-xl py-6 rounded-xl bg-quiz-orange hover:bg-quiz-orange/90"
 							size="lg"
 							disabled={isLoading || !isValid || !nickname?.trim()}
 						>

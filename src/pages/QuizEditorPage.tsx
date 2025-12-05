@@ -130,7 +130,7 @@ export function QuizEditorPage() {
 							</Link>
 							<h1 className="text-2xl sm:text-4xl font-display font-bold">{quizId ? 'Edit Quiz' : 'Create a New Quiz'}</h1>
 						</div>
-						<Button type="submit" disabled={isSubmitting} size="lg" className="bg-quiz-blue hover:bg-quiz-blue/90">
+						<Button type="submit" disabled={isSubmitting} size="lg" className="bg-quiz-orange hover:bg-quiz-orange/90">
 							{isSubmitting ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : <Save className="mr-2 h-5 w-5" />}
 							Save Quiz
 						</Button>

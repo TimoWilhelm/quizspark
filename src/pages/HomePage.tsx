@@ -144,21 +144,21 @@ export function HomePage() {
 
 	return (
 		<div className="min-h-screen w-full flex flex-col items-center justify-center bg-slate-50 text-slate-900 p-4 overflow-hidden relative">
-			<div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-fuchsia-100 to-slate-50 opacity-50 pointer-events-none" />
+			<div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-orange-100/50 via-amber-50/30 to-slate-50 opacity-50 pointer-events-none" />
 			<div className="text-center space-y-8 relative z-10 animate-fade-in w-full max-w-4xl pb-24">
 				<div className="flex justify-center">
-					<div className="w-24 h-24 rounded-full bg-gradient-to-br from-quiz-pink to-quiz-blue flex items-center justify-center shadow-lg animate-float">
+					<div className="w-24 h-24 rounded-full bg-gradient-to-br from-quiz-orange to-quiz-gold flex items-center justify-center shadow-lg animate-float">
 						<Sparkles className="w-12 h-12 text-white animate-pulse" />
 					</div>
 				</div>
 				<h1 className="text-5xl md:text-7xl font-display font-bold text-balance leading-tight">
-					Welcome to <span className="text-quiz-blue">Timoot</span>
+					Welcome to <span className="text-quiz-orange">Timoot</span>
 				</h1>
 				<p className="text-lg md:text-xl text-muted-foreground max-w-xl mx-auto text-pretty">
 					Select a quiz to begin the fun, or create your own!
 				</p>
 				{isLoading ? (
-					<Loader2 className="mx-auto h-12 w-12 animate-spin text-quiz-blue" />
+					<Loader2 className="mx-auto h-12 w-12 animate-spin text-quiz-orange" />
 				) : (
 					<div className="space-y-8">
 						<section>
@@ -175,13 +175,13 @@ export function HomePage() {
 											onClick={() => setSelectedQuizId(quiz.id)}
 											className={cn(
 												'cursor-pointer hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 rounded-2xl',
-												selectedQuizId === quiz.id && 'ring-4 ring-quiz-blue shadow-xl',
+												selectedQuizId === quiz.id && 'ring-4 ring-quiz-orange shadow-xl',
 											)}
 										>
 											<CardHeader>
 												<CardTitle className="flex items-center justify-between">
 													{quiz.title}
-													{selectedQuizId === quiz.id && <CheckCircle className="w-6 h-6 text-quiz-blue" />}
+													{selectedQuizId === quiz.id && <CheckCircle className="w-6 h-6 text-quiz-orange" />}
 												</CardTitle>
 											</CardHeader>
 										</Card>
@@ -203,14 +203,14 @@ export function HomePage() {
 											onClick={() => setSelectedQuizId(quiz.id)}
 											className={cn(
 												'cursor-pointer hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 rounded-2xl',
-												selectedQuizId === quiz.id && 'ring-4 ring-quiz-blue shadow-xl',
+												selectedQuizId === quiz.id && 'ring-4 ring-quiz-orange shadow-xl',
 											)}
 										>
 											<CardHeader>
 												<CardTitle className="flex items-center justify-between">
 													<span className="truncate pr-2">{quiz.title}</span>
 													<div className="flex items-center shrink-0">
-														{selectedQuizId === quiz.id && <CheckCircle className="w-6 h-6 text-quiz-blue mr-2" />}
+														{selectedQuizId === quiz.id && <CheckCircle className="w-6 h-6 text-quiz-orange mr-2" />}
 														<Button
 															variant="ghost"
 															size="icon"
@@ -259,8 +259,8 @@ export function HomePage() {
 								>
 									<Dialog open={isAiDialogOpen} onOpenChange={setIsAiDialogOpen}>
 										<DialogTrigger asChild>
-											<Card className="cursor-pointer hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 rounded-2xl border-dashed border-2 border-quiz-blue/50 flex items-center justify-center h-full min-h-[95px] bg-gradient-to-br from-quiz-blue/5 to-quiz-pink/5">
-												<div className="flex items-center text-quiz-blue font-medium">
+											<Card className="cursor-pointer hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 rounded-2xl border-dashed border-2 border-quiz-orange/50 flex items-center justify-center h-full min-h-[95px] bg-gradient-to-br from-quiz-orange/5 to-quiz-gold/5">
+												<div className="flex items-center text-quiz-orange font-medium">
 													<Wand2 className="w-6 h-6 mr-2" /> Generate with AI
 												</div>
 											</Card>
@@ -268,7 +268,7 @@ export function HomePage() {
 										<DialogContent className="sm:max-w-[425px]">
 											<DialogHeader>
 												<DialogTitle className="flex items-center gap-2">
-													<Wand2 className="w-5 h-5 text-quiz-blue" />
+													<Wand2 className="w-5 h-5 text-quiz-orange" />
 													Generate Quiz with AI
 												</DialogTitle>
 												<DialogDescription>
@@ -297,7 +297,7 @@ export function HomePage() {
 												<Button
 													onClick={handleGenerateAiQuiz}
 													disabled={isGenerating || aiPrompt.trim().length < LIMITS.AI_PROMPT_MIN}
-													className="bg-quiz-blue hover:bg-quiz-blue/90"
+													className="bg-quiz-orange hover:bg-quiz-orange/90"
 												>
 													{isGenerating ? (
 														<>
@@ -328,7 +328,7 @@ export function HomePage() {
 										size="lg"
 										onClick={handleStartGame}
 										disabled={isGameStarting || !selectedQuizId}
-										className="bg-quiz-blue hover:bg-quiz-blue/90 text-white px-12 py-8 text-2xl font-bold rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 active:scale-95"
+										className="bg-quiz-orange hover:bg-quiz-orange/90 text-white px-12 py-8 text-2xl font-bold rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 active:scale-95"
 									>
 										{isGameStarting ? <Loader2 className="mr-2 h-8 w-8 animate-spin" /> : 'Start Selected Quiz'}
 									</Button>
