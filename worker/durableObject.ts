@@ -1,16 +1,8 @@
 import { DurableObject } from 'cloudflare:workers';
-import type {
-	GameState,
-	Question,
-	Player,
-	Answer,
-	QuizTopic,
-	Quiz,
-	ClientMessage,
-	ServerMessage,
-	ClientRole,
-} from '@shared/types';
+import type { GameState, Question, Player, Answer, QuizTopic, Quiz, ClientMessage, ServerMessage, ClientRole } from '@shared/types';
 import { adjectives, colors, animals } from './words';
+import { z } from 'zod';
+import { wsClientMessageSchema, nicknameSchema, LIMITS } from '@shared/validation';
 
 // WebSocket attachment data stored per connection
 interface WebSocketAttachment {
@@ -119,7 +111,13 @@ export class GlobalDurableObject extends DurableObject {
 
 	async webSocketMessage(ws: WebSocket, message: string | ArrayBuffer): Promise<void> {
 		try {
-			const data = JSON.parse(message.toString()) as ClientMessage;
+			const rawData = JSON.parse(message.toString());
+			const parseResult = wsClientMessageSchema.safeParse(rawData);
+			if (!parseResult.success) {
+				this.sendMessage(ws, { type: 'error', message: z.prettifyError(parseResult.error) });
+				return;
+			}
+			const data = parseResult.data as ClientMessage;
 			const attachment = ws.deserializeAttachment() as WebSocketAttachment | null;
 
 			// Handle connection/authentication
@@ -168,10 +166,7 @@ export class GlobalDurableObject extends DurableObject {
 
 	// ============ WebSocket Message Handlers ============
 
-	private async handleConnect(
-		ws: WebSocket,
-		data: Extract<ClientMessage, { type: 'connect' }>,
-	): Promise<void> {
+	private async handleConnect(ws: WebSocket, data: Extract<ClientMessage, { type: 'connect' }>): Promise<void> {
 		const state = await this.getFullGameState();
 		if (!state) {
 			this.sendMessage(ws, { type: 'error', message: 'Game not found' });
@@ -238,19 +233,27 @@ export class GlobalDurableObject extends DurableObject {
 			return;
 		}
 
+		// Validate nickname with Zod
+		const nicknameResult = nicknameSchema.safeParse(nickname);
+		if (!nicknameResult.success) {
+			this.sendMessage(ws, { type: 'error', message: z.prettifyError(nicknameResult.error) });
+			return;
+		}
+		const validatedNickname = nicknameResult.data;
+
 		const state = await this.getFullGameState();
 		if (!state || state.phase !== 'LOBBY') {
 			this.sendMessage(ws, { type: 'error', message: 'Cannot join - game not in lobby' });
 			return;
 		}
 
-		if (state.players.some((p) => p.name.toLowerCase() === nickname.toLowerCase())) {
+		if (state.players.some((p) => p.name.toLowerCase() === validatedNickname.toLowerCase())) {
 			this.sendMessage(ws, { type: 'error', message: 'Nickname already taken' });
 			return;
 		}
 
 		const playerId = crypto.randomUUID();
-		const newPlayer: Player = { id: playerId, name: nickname, score: 0, answered: false };
+		const newPlayer: Player = { id: playerId, name: validatedNickname, score: 0, answered: false };
 		state.players.push(newPlayer);
 		await this.ctx.storage.put('game_state', state);
 
@@ -287,13 +290,15 @@ export class GlobalDurableObject extends DurableObject {
 		this.broadcastQuestionStart(state);
 	}
 
-	private async handleSubmitAnswer(
-		ws: WebSocket,
-		attachment: WebSocketAttachment,
-		answerIndex: number,
-	): Promise<void> {
+	private async handleSubmitAnswer(ws: WebSocket, attachment: WebSocketAttachment, answerIndex: number): Promise<void> {
 		if (attachment.role !== 'player' || !attachment.playerId) {
 			this.sendMessage(ws, { type: 'error', message: 'Only players can submit answers' });
+			return;
+		}
+
+		// Validate answer index
+		if (typeof answerIndex !== 'number' || answerIndex < 0 || answerIndex >= LIMITS.OPTIONS_MAX) {
+			this.sendMessage(ws, { type: 'error', message: 'Invalid answer index' });
 			return;
 		}
 
@@ -435,18 +440,53 @@ export class GlobalDurableObject extends DurableObject {
 	}
 
 	private broadcastLobbyUpdate(state: GameState): void {
-		const message: ServerMessage = {
+		this.broadcastToAll(this.buildLobbyMessage(state));
+	}
+
+	private broadcastQuestionStart(state: GameState): void {
+		this.broadcastToAll(this.buildQuestionMessage(state));
+	}
+
+	private broadcastReveal(state: GameState): void {
+		// Send to host (no player-specific result)
+		this.broadcastToRole('host', this.buildRevealMessage(state));
+
+		// Send to each player with their individual result
+		const sockets = this.ctx.getWebSockets();
+		for (const ws of sockets) {
+			const attachment = ws.deserializeAttachment() as WebSocketAttachment | null;
+			if (attachment?.authenticated && attachment.role === 'player' && attachment.playerId) {
+				this.sendMessage(ws, this.buildRevealMessage(state, attachment.playerId));
+			}
+		}
+	}
+
+	private broadcastLeaderboard(state: GameState): void {
+		this.broadcastToAll(this.buildLeaderboardMessage(state));
+	}
+
+	private broadcastGameEnd(state: GameState): void {
+		this.broadcastToAll(this.buildGameEndMessage(state));
+	}
+
+	// ============ Shared State Builders ============
+
+	private buildLeaderboard(state: GameState): { id: string; name: string; score: number; rank: number }[] {
+		return [...state.players].sort((a, b) => b.score - a.score).map((p, i) => ({ id: p.id, name: p.name, score: p.score, rank: i + 1 }));
+	}
+
+	private buildLobbyMessage(state: GameState): ServerMessage {
+		return {
 			type: 'lobbyUpdate',
 			players: state.players.map((p) => ({ id: p.id, name: p.name })),
 			pin: state.pin,
 			gameId: state.id,
 		};
-		this.broadcastToAll(message);
 	}
 
-	private broadcastQuestionStart(state: GameState): void {
+	private buildQuestionMessage(state: GameState): ServerMessage {
 		const question = state.questions[state.currentQuestionIndex];
-		const message: ServerMessage = {
+		return {
 			type: 'questionStart',
 			questionIndex: state.currentQuestionIndex,
 			totalQuestions: state.questions.length,
@@ -455,170 +495,73 @@ export class GlobalDurableObject extends DurableObject {
 			startTime: state.questionStartTime,
 			timeLimitMs: QUESTION_TIME_LIMIT_MS,
 		};
-		this.broadcastToAll(message);
 	}
 
-	private broadcastReveal(state: GameState): void {
-		const currentQuestion = state.questions[state.currentQuestionIndex];
-		const answerCounts = new Array(currentQuestion.options.length).fill(0);
+	private buildAnswerCounts(state: GameState): number[] {
+		const question = state.questions[state.currentQuestionIndex];
+		const answerCounts = new Array(question.options.length).fill(0);
 		state.answers.forEach((a) => {
 			if (a.answerIndex >= 0 && a.answerIndex < answerCounts.length) {
 				answerCounts[a.answerIndex]++;
 			}
 		});
-
-		// Send to host with full answer counts
-		this.broadcastToRole('host', {
-			type: 'reveal',
-			correctAnswerIndex: currentQuestion.correctAnswerIndex,
-			answerCounts,
-		});
-
-		// Send to each player with their individual result
-		const sockets = this.ctx.getWebSockets();
-		for (const ws of sockets) {
-			const attachment = ws.deserializeAttachment() as WebSocketAttachment | null;
-			if (attachment?.authenticated && attachment.role === 'player' && attachment.playerId) {
-				const playerAnswer = state.answers.find((a) => a.playerId === attachment.playerId);
-				this.sendMessage(ws, {
-					type: 'reveal',
-					correctAnswerIndex: currentQuestion.correctAnswerIndex,
-					playerResult: playerAnswer
-						? {
-								isCorrect: playerAnswer.isCorrect ?? false,
-								score: playerAnswer.score ?? 0,
-								answerIndex: playerAnswer.answerIndex,
-						  }
-						: undefined,
-					answerCounts,
-				});
-			}
-		}
+		return answerCounts;
 	}
 
-	private broadcastLeaderboard(state: GameState): void {
-		const leaderboard = state.players
-			.sort((a, b) => b.score - a.score)
-			.map((p, i) => ({
-				id: p.id,
-				name: p.name,
-				score: p.score,
-				rank: i + 1,
-			}));
+	private buildRevealMessage(state: GameState, playerId?: string): ServerMessage {
+		const question = state.questions[state.currentQuestionIndex];
+		const answerCounts = this.buildAnswerCounts(state);
+		const playerAnswer = playerId ? state.answers.find((a) => a.playerId === playerId) : undefined;
 
-		const message: ServerMessage = {
+		return {
+			type: 'reveal',
+			correctAnswerIndex: question.correctAnswerIndex,
+			playerResult: playerAnswer
+				? { isCorrect: playerAnswer.isCorrect ?? false, score: playerAnswer.score ?? 0, answerIndex: playerAnswer.answerIndex }
+				: undefined,
+			answerCounts,
+		};
+	}
+
+	private buildLeaderboardMessage(state: GameState): ServerMessage {
+		return {
 			type: 'leaderboard',
-			leaderboard,
+			leaderboard: this.buildLeaderboard(state),
 			isLastQuestion: state.currentQuestionIndex >= state.questions.length - 1,
 		};
-		this.broadcastToAll(message);
 	}
 
-	private broadcastGameEnd(state: GameState): void {
-		const finalLeaderboard = state.players
-			.sort((a, b) => b.score - a.score)
-			.map((p, i) => ({
-				id: p.id,
-				name: p.name,
-				score: p.score,
-				rank: i + 1,
-			}));
-
-		this.broadcastToAll({ type: 'gameEnd', finalLeaderboard });
+	private buildGameEndMessage(state: GameState): ServerMessage {
+		return { type: 'gameEnd', finalLeaderboard: this.buildLeaderboard(state) };
 	}
 
 	private async sendCurrentStateToHost(ws: WebSocket, state: GameState): Promise<void> {
 		switch (state.phase) {
-			case 'LOBBY': {
-				this.sendMessage(ws, {
-					type: 'lobbyUpdate',
-					players: state.players.map((p) => ({ id: p.id, name: p.name })),
-					pin: state.pin,
-					gameId: state.id,
-				});
+			case 'LOBBY':
+				this.sendMessage(ws, this.buildLobbyMessage(state));
 				break;
-			}
-			case 'QUESTION': {
-				const question = state.questions[state.currentQuestionIndex];
-				this.sendMessage(ws, {
-					type: 'questionStart',
-					questionIndex: state.currentQuestionIndex,
-					totalQuestions: state.questions.length,
-					questionText: question.text,
-					options: question.options,
-					startTime: state.questionStartTime,
-					timeLimitMs: QUESTION_TIME_LIMIT_MS,
-				});
+			case 'QUESTION':
+				this.sendMessage(ws, this.buildQuestionMessage(state));
 				break;
-			}
-			case 'REVEAL': {
-				const revealQuestion = state.questions[state.currentQuestionIndex];
-				const answerCounts = new Array(revealQuestion.options.length).fill(0);
-				state.answers.forEach((a) => {
-					if (a.answerIndex >= 0 && a.answerIndex < answerCounts.length) {
-						answerCounts[a.answerIndex]++;
-					}
-				});
-				this.sendMessage(ws, {
-					type: 'reveal',
-					correctAnswerIndex: revealQuestion.correctAnswerIndex,
-					answerCounts,
-				});
+			case 'REVEAL':
+				this.sendMessage(ws, this.buildRevealMessage(state));
 				break;
-			}
-			case 'LEADERBOARD': {
-				const leaderboard = state.players
-					.sort((a, b) => b.score - a.score)
-					.map((p, i) => ({
-						id: p.id,
-						name: p.name,
-						score: p.score,
-						rank: i + 1,
-					}));
-				this.sendMessage(ws, {
-					type: 'leaderboard',
-					leaderboard,
-					isLastQuestion: state.currentQuestionIndex >= state.questions.length - 1,
-				});
+			case 'LEADERBOARD':
+				this.sendMessage(ws, this.buildLeaderboardMessage(state));
 				break;
-			}
-			case 'END': {
-				const finalLeaderboard = state.players
-					.sort((a, b) => b.score - a.score)
-					.map((p, i) => ({
-						id: p.id,
-						name: p.name,
-						score: p.score,
-						rank: i + 1,
-					}));
-				this.sendMessage(ws, { type: 'gameEnd', finalLeaderboard });
+			case 'END':
+				this.sendMessage(ws, this.buildGameEndMessage(state));
 				break;
-			}
 		}
 	}
 
 	private async sendCurrentStateToPlayer(ws: WebSocket, state: GameState, playerId: string): Promise<void> {
 		switch (state.phase) {
-			case 'LOBBY': {
-				this.sendMessage(ws, {
-					type: 'lobbyUpdate',
-					players: state.players.map((p) => ({ id: p.id, name: p.name })),
-					pin: state.pin,
-					gameId: state.id,
-				});
+			case 'LOBBY':
+				this.sendMessage(ws, this.buildLobbyMessage(state));
 				break;
-			}
 			case 'QUESTION': {
-				const question = state.questions[state.currentQuestionIndex];
-				this.sendMessage(ws, {
-					type: 'questionStart',
-					questionIndex: state.currentQuestionIndex,
-					totalQuestions: state.questions.length,
-					questionText: question.text,
-					options: question.options,
-					startTime: state.questionStartTime,
-					timeLimitMs: QUESTION_TIME_LIMIT_MS,
-				});
+				this.sendMessage(ws, this.buildQuestionMessage(state));
 				// Check if player already answered
 				const existingAnswer = state.answers.find((a) => a.playerId === playerId);
 				if (existingAnswer) {
@@ -626,57 +569,15 @@ export class GlobalDurableObject extends DurableObject {
 				}
 				break;
 			}
-			case 'REVEAL': {
-				const revealQuestion = state.questions[state.currentQuestionIndex];
-				const answerCounts = new Array(revealQuestion.options.length).fill(0);
-				state.answers.forEach((a) => {
-					if (a.answerIndex >= 0 && a.answerIndex < answerCounts.length) {
-						answerCounts[a.answerIndex]++;
-					}
-				});
-				const playerAnswer = state.answers.find((a) => a.playerId === playerId);
-				this.sendMessage(ws, {
-					type: 'reveal',
-					correctAnswerIndex: revealQuestion.correctAnswerIndex,
-					playerResult: playerAnswer
-						? {
-								isCorrect: playerAnswer.isCorrect ?? false,
-								score: playerAnswer.score ?? 0,
-								answerIndex: playerAnswer.answerIndex,
-						  }
-						: undefined,
-					answerCounts,
-				});
+			case 'REVEAL':
+				this.sendMessage(ws, this.buildRevealMessage(state, playerId));
 				break;
-			}
-			case 'LEADERBOARD': {
-				const leaderboard = state.players
-					.sort((a, b) => b.score - a.score)
-					.map((p, i) => ({
-						id: p.id,
-						name: p.name,
-						score: p.score,
-						rank: i + 1,
-					}));
-				this.sendMessage(ws, {
-					type: 'leaderboard',
-					leaderboard,
-					isLastQuestion: state.currentQuestionIndex >= state.questions.length - 1,
-				});
+			case 'LEADERBOARD':
+				this.sendMessage(ws, this.buildLeaderboardMessage(state));
 				break;
-			}
-			case 'END': {
-				const finalLeaderboard = state.players
-					.sort((a, b) => b.score - a.score)
-					.map((p, i) => ({
-						id: p.id,
-						name: p.name,
-						score: p.score,
-						rank: i + 1,
-					}));
-				this.sendMessage(ws, { type: 'gameEnd', finalLeaderboard });
+			case 'END':
+				this.sendMessage(ws, this.buildGameEndMessage(state));
 				break;
-			}
 		}
 	}
 
@@ -728,6 +629,13 @@ export class GlobalDurableObject extends DurableObject {
 		return state ?? null;
 	}
 	async addPlayer(name: string, playerId: string): Promise<GameState | { error: string }> {
+		// Validate nickname
+		const nicknameResult = nicknameSchema.safeParse(name);
+		if (!nicknameResult.success) {
+			return { error: z.prettifyError(nicknameResult.error) };
+		}
+		const validatedName = nicknameResult.data;
+
 		const state = await this.getFullGameState();
 		if (!state || state.phase !== 'LOBBY') {
 			return { error: 'Game not in LOBBY phase or does not exist.' };
@@ -738,10 +646,10 @@ export class GlobalDurableObject extends DurableObject {
 			if (!gameState) return { error: 'Game not found.' };
 			return gameState;
 		}
-		if (state.players.some((p) => p.name.toLowerCase() === name.toLowerCase())) {
+		if (state.players.some((p) => p.name.toLowerCase() === validatedName.toLowerCase())) {
 			return { error: 'Player name already taken.' };
 		}
-		const newPlayer: Player = { id: playerId, name, score: 0, answered: false };
+		const newPlayer: Player = { id: playerId, name: validatedName, score: 0, answered: false };
 		state.players.push(newPlayer);
 		await this.ctx.storage.put('game_state', state);
 		const gameState = await this.getGameState();

@@ -40,11 +40,7 @@ export function HostLobby({ onStart, players, gameId }: HostLobbyProps) {
 									className="p-1.5 rounded-md hover:bg-muted transition-colors flex-shrink-0"
 									title="Copy link"
 								>
-									{copied ? (
-										<Check className="w-4 h-4 text-green-500" />
-									) : (
-										<Copy className="w-4 h-4 text-muted-foreground" />
-									)}
+									{copied ? <Check className="w-4 h-4 text-green-500" /> : <Copy className="w-4 h-4 text-muted-foreground" />}
 								</button>
 							</div>
 						</CardContent>

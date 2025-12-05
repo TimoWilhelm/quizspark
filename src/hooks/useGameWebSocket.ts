@@ -54,15 +54,7 @@ const initialGameState: WebSocketGameState = {
 	isLastQuestion: false,
 };
 
-export function useGameWebSocket({
-	gameId,
-	role,
-	hostSecret,
-	playerId,
-	onError,
-	onConnected,
-	onPlayerJoined,
-}: UseGameWebSocketOptions) {
+export function useGameWebSocket({ gameId, role, hostSecret, playerId, onError, onConnected, onPlayerJoined }: UseGameWebSocketOptions) {
 	const wsRef = useRef<WebSocket | null>(null);
 	const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 	const [isConnected, setIsConnected] = useState(false);
@@ -177,8 +169,7 @@ export function useGameWebSocket({
 
 	const connect = useCallback(() => {
 		// Prevent duplicate connections - check both OPEN and CONNECTING states
-		if (wsRef.current?.readyState === WebSocket.OPEN || 
-		    wsRef.current?.readyState === WebSocket.CONNECTING) return;
+		if (wsRef.current?.readyState === WebSocket.OPEN || wsRef.current?.readyState === WebSocket.CONNECTING) return;
 
 		setIsConnecting(true);
 		setError(null);

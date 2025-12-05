@@ -2,7 +2,6 @@ import { useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useForm, useFieldArray, Controller, SubmitHandler } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { z } from 'zod';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -10,21 +9,12 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
 import { PlusCircle, Trash2, Loader2, Save, ArrowLeft } from 'lucide-react';
 import { Toaster, toast } from 'sonner';
-import type { ApiResponse, Quiz } from '@shared/types';
-const questionSchema = z.object({
-	text: z.string().min(1, 'Question text is required.'),
-	options: z.array(z.string().min(1, 'Option text is required.')).min(2).max(4),
-	correctAnswerIndex: z.string().min(1, 'A correct answer must be selected.'),
-});
-const quizSchema = z.object({
-	title: z.string().min(1, 'Quiz title is required.'),
-	questions: z.array(questionSchema).min(1, 'A quiz must have at least one question.'),
-});
-type QuizFormInput = z.input<typeof quizSchema>;
-type QuizFormData = Omit<QuizFormInput, 'questions'> & {
-	questions: (Omit<z.input<typeof questionSchema>, 'correctAnswerIndex'> & {
-		correctAnswerIndex: number;
-	})[];
+import type { ApiResponse, Quiz, Question } from '@shared/types';
+import { quizFormSchema, LIMITS, type QuizFormInput } from '@shared/validation';
+
+type QuizFormData = {
+	title: string;
+	questions: Question[];
 };
 export function QuizEditorPage() {
 	const { quizId } = useParams<{ quizId?: string }>();
@@ -37,7 +27,7 @@ export function QuizEditorPage() {
 		getValues,
 		formState: { errors, isSubmitting },
 	} = useForm<QuizFormInput>({
-		resolver: zodResolver(quizSchema),
+		resolver: zodResolver(quizFormSchema),
 		defaultValues: { title: '', questions: [] },
 	});
 	const { fields, append, remove, update } = useFieldArray({ control, name: 'questions' });
@@ -102,7 +92,7 @@ export function QuizEditorPage() {
 	const addQuestion = () => append({ text: '', options: ['', ''], correctAnswerIndex: '0' });
 	const addOption = (qIndex: number) => {
 		const currentQuestion = getValues(`questions.${qIndex}`);
-		if (currentQuestion.options.length < 4) {
+		if (currentQuestion.options.length < LIMITS.OPTIONS_MAX) {
 			update(qIndex, {
 				...currentQuestion,
 				options: [...currentQuestion.options, ''],
@@ -111,7 +101,7 @@ export function QuizEditorPage() {
 	};
 	const removeOption = (qIndex: number, oIndex: number) => {
 		const currentQuestion = getValues(`questions.${qIndex}`);
-		if (currentQuestion.options.length > 2) {
+		if (currentQuestion.options.length > LIMITS.OPTIONS_MIN) {
 			const newOptions = currentQuestion.options.filter((_, i) => i !== oIndex);
 			const currentCorrect = parseInt(currentQuestion.correctAnswerIndex, 10);
 			const newCorrect =
@@ -151,7 +141,13 @@ export function QuizEditorPage() {
 						</CardHeader>
 						<CardContent>
 							<Label htmlFor="title">Quiz Title</Label>
-							<Input id="title" {...register('title')} placeholder="e.g., 'Fun Facts Friday'" className="text-lg" />
+							<Input
+								id="title"
+								{...register('title')}
+								placeholder="e.g., 'Fun Facts Friday'"
+								className="text-lg"
+								maxLength={LIMITS.QUIZ_TITLE_MAX}
+							/>
 							{errors.title && <p className="text-red-500 text-sm mt-1">{errors.title.message}</p>}
 						</CardContent>
 					</Card>
@@ -172,7 +168,7 @@ export function QuizEditorPage() {
 							<CardContent className="space-y-4">
 								<div>
 									<Label>Question Text</Label>
-									<Input {...register(`questions.${qIndex}.text`)} placeholder="What is...?" />
+									<Input {...register(`questions.${qIndex}.text`)} placeholder="What is...?" maxLength={LIMITS.QUESTION_TEXT_MAX} />
 									{errors.questions?.[qIndex]?.text && (
 										<p className="text-red-500 text-sm mt-1">{errors.questions[qIndex]?.text?.message}</p>
 									)}
@@ -191,8 +187,9 @@ export function QuizEditorPage() {
 															{...register(`questions.${qIndex}.options.${oIndex}`)}
 															placeholder={`Option ${oIndex + 1}`}
 															className="flex-grow"
+															maxLength={LIMITS.OPTION_TEXT_MAX}
 														/>
-														{getValues(`questions.${qIndex}.options`).length > 2 && (
+														{getValues(`questions.${qIndex}.options`).length > LIMITS.OPTIONS_MIN && (
 															<Button
 																type="button"
 																variant="ghost"
@@ -213,7 +210,7 @@ export function QuizEditorPage() {
 										<p className="text-red-500 text-sm mt-1">{errors.questions[qIndex]?.correctAnswerIndex?.message}</p>
 									)}
 								</div>
-								{getValues(`questions.${qIndex}.options`).length < 4 && (
+								{getValues(`questions.${qIndex}.options`).length < LIMITS.OPTIONS_MAX && (
 									<Button type="button" variant="outline" onClick={() => addOption(qIndex)}>
 										<PlusCircle className="mr-2 h-4 w-4" /> Add Option
 									</Button>

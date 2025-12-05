@@ -84,26 +84,15 @@ export function PlayerPage() {
 		[urlGameId, setSession, storedPlayerId, clearSession],
 	);
 
-	const handleError = useCallback(
-		(msg: string) => {
-			if (msg === 'Game has already started') {
-				setView('GAME_IN_PROGRESS');
-			} else {
-				toast.error(msg);
-			}
-		},
-		[],
-	);
+	const handleError = useCallback((msg: string) => {
+		if (msg === 'Game has already started') {
+			setView('GAME_IN_PROGRESS');
+		} else {
+			toast.error(msg);
+		}
+	}, []);
 
-	const {
-		isConnecting,
-		isConnected,
-		error,
-		gameState,
-		submittedAnswer,
-		join,
-		submitAnswer,
-	} = useGameWebSocket({
+	const { isConnecting, isConnected, error, gameState, submittedAnswer, join, submitAnswer } = useGameWebSocket({
 		gameId: urlGameId!,
 		role: 'player',
 		playerId: currentPlayerId,
@@ -204,13 +193,7 @@ export function PlayerPage() {
 
 		if (gameState.phase === 'QUESTION' && gameState.options.length > 0) {
 			const optionIndices = Array.from({ length: gameState.options.length }, (_, i) => i);
-			return (
-				<PlayerAnswerScreen
-					onAnswer={handleAnswer}
-					submittedAnswer={submittedAnswer}
-					optionIndices={optionIndices}
-				/>
-			);
+			return <PlayerAnswerScreen onAnswer={handleAnswer} submittedAnswer={submittedAnswer} optionIndices={optionIndices} />;
 		}
 
 		return (

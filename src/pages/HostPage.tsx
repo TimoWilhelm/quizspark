@@ -16,14 +16,7 @@ export function HostPage() {
 	const getSecret = useHostStore((s) => s.getSecret);
 	const hostSecret = getSecret(gameId!);
 
-	const {
-		isConnecting,
-		isConnected,
-		error,
-		gameState,
-		startGame,
-		nextState,
-	} = useGameWebSocket({
+	const { isConnecting, isConnected, error, gameState, startGame, nextState } = useGameWebSocket({
 		gameId: gameId!,
 		role: 'host',
 		hostSecret,
@@ -54,13 +47,7 @@ export function HostPage() {
 	const renderContent = () => {
 		switch (gameState.phase) {
 			case 'LOBBY':
-				return (
-					<HostLobby
-						onStart={startGame}
-						players={gameState.players}
-						gameId={gameState.gameId}
-					/>
-				);
+				return <HostLobby onStart={startGame} players={gameState.players} gameId={gameState.gameId} />;
 			case 'QUESTION':
 				return (
 					<HostQuestion
@@ -86,13 +73,7 @@ export function HostPage() {
 					/>
 				);
 			case 'LEADERBOARD':
-				return (
-					<HostLeaderboard
-						onNext={nextState}
-						leaderboard={gameState.leaderboard}
-						isLastQuestion={gameState.isLastQuestion}
-					/>
-				);
+				return <HostLeaderboard onNext={nextState} leaderboard={gameState.leaderboard} isLastQuestion={gameState.isLastQuestion} />;
 			case 'END':
 				return <HostEnd leaderboard={gameState.leaderboard} />;
 			default:

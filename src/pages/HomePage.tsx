@@ -5,11 +5,23 @@ import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import {
+	AlertDialog,
+	AlertDialogAction,
+	AlertDialogCancel,
+	AlertDialogContent,
+	AlertDialogDescription,
+	AlertDialogFooter,
+	AlertDialogHeader,
+	AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Toaster, toast } from 'sonner';
 import type { ApiResponse, GameState, QuizTopic, Quiz } from '@shared/types';
 import { cn } from '@/lib/utils';
+import { z } from 'zod';
+import { aiPromptSchema, LIMITS } from '@shared/validation';
 import { motion } from 'framer-motion';
 import { useHostStore } from '@/lib/host-store';
 
@@ -23,6 +35,7 @@ export function HomePage() {
 	const [aiPrompt, setAiPrompt] = useState('');
 	const [isGenerating, setIsGenerating] = useState(false);
 	const [isAiDialogOpen, setIsAiDialogOpen] = useState(false);
+	const [quizToDelete, setQuizToDelete] = useState<string | null>(null);
 	const addSecret = useHostStore((s) => s.addSecret);
 
 	const fetchQuizzes = async () => {
@@ -83,24 +96,25 @@ export function HomePage() {
 		}
 	};
 
-	const handleDeleteQuiz = async (e: React.MouseEvent, quizId: string) => {
-		e.stopPropagation();
-		if (window.confirm('Are you sure you want to delete this quiz?')) {
-			try {
-				const res = await fetch(`/api/quizzes/custom/${quizId}`, { method: 'DELETE' });
-				if (!res.ok) throw new Error('Failed to delete quiz');
-				toast.success('Quiz deleted!');
-				if (selectedQuizId === quizId) setSelectedQuizId(null);
-				fetchQuizzes();
-			} catch (err) {
-				toast.error('Could not delete quiz.');
-			}
+	const handleDeleteQuiz = async () => {
+		if (!quizToDelete) return;
+		try {
+			const res = await fetch(`/api/quizzes/custom/${quizToDelete}`, { method: 'DELETE' });
+			if (!res.ok) throw new Error('Failed to delete quiz');
+			toast.success('Quiz deleted!');
+			if (selectedQuizId === quizToDelete) setSelectedQuizId(null);
+			fetchQuizzes();
+		} catch (err) {
+			toast.error('Could not delete quiz.');
+		} finally {
+			setQuizToDelete(null);
 		}
 	};
 
 	const handleGenerateAiQuiz = async () => {
-		if (!aiPrompt.trim()) {
-			toast.error('Please enter a topic or prompt for your quiz.');
+		const result = aiPromptSchema.safeParse(aiPrompt);
+		if (!result.success) {
+			toast.error(z.prettifyError(result.error));
 			return;
 		}
 		setIsGenerating(true);
@@ -210,7 +224,10 @@ export function HomePage() {
 														<Button
 															variant="ghost"
 															size="icon"
-															onClick={(e) => handleDeleteQuiz(e, quiz.id)}
+															onClick={(e) => {
+																e.stopPropagation();
+																setQuizToDelete(quiz.id);
+															}}
 															className="text-red-500 hover:text-red-700"
 														>
 															<Trash2 className="w-4 h-4" />
@@ -269,13 +286,17 @@ export function HomePage() {
 														onKeyDown={(e) => e.key === 'Enter' && !isGenerating && handleGenerateAiQuiz()}
 														disabled={isGenerating}
 														className="col-span-3"
+														maxLength={LIMITS.AI_PROMPT_MAX}
 													/>
+													<p className="text-xs text-muted-foreground mt-1">
+														{aiPrompt.length}/{LIMITS.AI_PROMPT_MAX} characters
+													</p>
 												</div>
 											</div>
 											<DialogFooter>
 												<Button
 													onClick={handleGenerateAiQuiz}
-													disabled={isGenerating || !aiPrompt.trim()}
+													disabled={isGenerating || aiPrompt.trim().length < LIMITS.AI_PROMPT_MIN}
 													className="bg-quiz-blue hover:bg-quiz-blue/90"
 												>
 													{isGenerating ? (
@@ -325,6 +346,23 @@ export function HomePage() {
 			<footer className="absolute bottom-8 text-center text-muted-foreground/80">
 				<p>Built with ❤️ at Cloudflare</p>
 			</footer>
+
+			{/* Delete Quiz Confirmation Dialog */}
+			<AlertDialog open={!!quizToDelete} onOpenChange={(open) => !open && setQuizToDelete(null)}>
+				<AlertDialogContent>
+					<AlertDialogHeader>
+						<AlertDialogTitle>Delete Quiz</AlertDialogTitle>
+						<AlertDialogDescription>Are you sure you want to delete this quiz? This action cannot be undone.</AlertDialogDescription>
+					</AlertDialogHeader>
+					<AlertDialogFooter>
+						<AlertDialogCancel>Cancel</AlertDialogCancel>
+						<AlertDialogAction onClick={handleDeleteQuiz} className="bg-red-500 hover:bg-red-600">
+							Delete
+						</AlertDialogAction>
+					</AlertDialogFooter>
+				</AlertDialogContent>
+			</AlertDialog>
+
 			<Toaster richColors closeButton />
 		</div>
 	);

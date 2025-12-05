@@ -174,11 +174,7 @@ export function PlayerWaitingScreen({ phase, answerResult, finalScore, playerId,
 				return (
 					<div className="text-center">
 						{showConfetti && <CelebrationConfetti />}
-						<motion.h2
-							initial={{ opacity: 0, y: -20 }}
-							animate={{ opacity: 1, y: 0 }}
-							className="text-4xl font-bold mb-6"
-						>
+						<motion.h2 initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} className="text-4xl font-bold mb-6">
 							Game Over!
 						</motion.h2>
 
@@ -197,12 +193,7 @@ export function PlayerWaitingScreen({ phase, answerResult, finalScore, playerId,
 							</motion.div>
 						) : null}
 
-						<motion.p
-							initial={{ opacity: 0 }}
-							animate={{ opacity: 1 }}
-							transition={{ delay: 0.8 }}
-							className="text-2xl mt-4"
-						>
+						<motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.8 }} className="text-2xl mt-4">
 							Final score: <span className="font-bold text-quiz-yellow">{finalScore}</span>
 						</motion.p>
 					</div>

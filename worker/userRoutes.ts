@@ -3,6 +3,15 @@ import { Env } from './core-utils';
 import { QUIZ_TOPICS } from './durableObject';
 import type { ApiResponse, GameState, QuizTopic, Quiz } from '@shared/types';
 import { generateQuizFromPrompt } from './ai';
+import { z } from 'zod';
+import {
+	aiGenerateRequestSchema,
+	quizSchema,
+	playerJoinRequestSchema,
+	submitAnswerRequestSchema,
+	hostAuthRequestSchema,
+	createGameRequestSchema,
+} from '@shared/validation';
 
 export function userRoutes(app: Hono<{ Bindings: Env }>) {
 	// WebSocket upgrade endpoint - forwards to Durable Object
@@ -18,9 +27,11 @@ export function userRoutes(app: Hono<{ Bindings: Env }>) {
 		const url = new URL(c.req.url);
 		url.pathname = '/websocket';
 
-		return durableObjectStub.fetch(new Request(url.toString(), {
-			headers: c.req.raw.headers,
-		}));
+		return durableObjectStub.fetch(
+			new Request(url.toString(), {
+				headers: c.req.raw.headers,
+			}),
+		);
 	});
 	app.get('/api/quizzes', (c) => {
 		return c.json({ success: true, data: QUIZ_TOPICS } satisfies ApiResponse<QuizTopic[]>);
@@ -40,19 +51,27 @@ export function userRoutes(app: Hono<{ Bindings: Env }>) {
 		return c.json({ success: true, data } satisfies ApiResponse<Quiz>);
 	});
 	app.post('/api/quizzes/custom', async (c) => {
-		const body = await c.req.json<Omit<Quiz, 'id'>>();
+		const body = await c.req.json();
+		const result = quizSchema.safeParse(body);
+		if (!result.success) {
+			return c.json({ success: false, error: z.prettifyError(result.error) } satisfies ApiResponse, 400);
+		}
 		const durableObjectStub = c.env.GlobalDurableObject.get(c.env.GlobalDurableObject.idFromName('global'));
-		const data = await durableObjectStub.saveCustomQuiz(body);
+		const data = await durableObjectStub.saveCustomQuiz(result.data);
 		return c.json({ success: true, data }, 201);
 	});
 	app.put('/api/quizzes/custom/:id', async (c) => {
 		const { id } = c.req.param();
-		const body = await c.req.json<Quiz>();
-		if (id !== body.id) {
+		const body = await c.req.json();
+		const result = quizSchema.safeParse(body);
+		if (!result.success) {
+			return c.json({ success: false, error: z.prettifyError(result.error) } satisfies ApiResponse, 400);
+		}
+		if (id !== result.data.id) {
 			return c.json({ success: false, error: 'ID mismatch' }, 400);
 		}
 		const durableObjectStub = c.env.GlobalDurableObject.get(c.env.GlobalDurableObject.idFromName('global'));
-		const data = await durableObjectStub.saveCustomQuiz(body);
+		const data = await durableObjectStub.saveCustomQuiz(result.data);
 		return c.json({ success: true, data });
 	});
 	app.delete('/api/quizzes/custom/:id', async (c) => {
@@ -67,11 +86,13 @@ export function userRoutes(app: Hono<{ Bindings: Env }>) {
 	// AI Quiz Generation endpoint
 	app.post('/api/quizzes/generate', async (c) => {
 		try {
-			const { prompt, numQuestions } = await c.req.json<{ prompt: string; numQuestions?: number }>();
-			if (!prompt || typeof prompt !== 'string' || prompt.trim().length === 0) {
-				return c.json({ success: false, error: 'Prompt is required' } satisfies ApiResponse, 400);
+			const body = await c.req.json();
+			const result = aiGenerateRequestSchema.safeParse(body);
+			if (!result.success) {
+				return c.json({ success: false, error: z.prettifyError(result.error) } satisfies ApiResponse, 400);
 			}
-			const generatedQuiz = await generateQuizFromPrompt(prompt.trim(), numQuestions ?? 5);
+			const { prompt, numQuestions } = result.data;
+			const generatedQuiz = await generateQuizFromPrompt(prompt, numQuestions);
 			// Save the generated quiz as a custom quiz
 			const durableObjectStub = c.env.GlobalDurableObject.get(c.env.GlobalDurableObject.idFromName('global'));
 			const savedQuiz = await durableObjectStub.saveCustomQuiz({
@@ -88,9 +109,13 @@ export function userRoutes(app: Hono<{ Bindings: Env }>) {
 		}
 	});
 	app.post('/api/games', async (c) => {
-		const { quizId } = await c.req.json<{ quizId?: string }>();
+		const body = await c.req.json();
+		const result = createGameRequestSchema.safeParse(body);
+		if (!result.success) {
+			return c.json({ success: false, error: z.prettifyError(result.error) } satisfies ApiResponse, 400);
+		}
 		const durableObjectStub = c.env.GlobalDurableObject.get(c.env.GlobalDurableObject.idFromName('global'));
-		const data = await durableObjectStub.createGame(quizId);
+		const data = await durableObjectStub.createGame(result.data.quizId);
 		if ('error' in data) {
 			return c.json({ success: false, error: data.error }, 400);
 		}
@@ -105,10 +130,12 @@ export function userRoutes(app: Hono<{ Bindings: Env }>) {
 		return c.json({ success: true, data } satisfies ApiResponse<GameState>);
 	});
 	app.post('/api/games/:gameId/host', async (c) => {
-		const { hostSecret } = await c.req.json<{ hostSecret: string }>();
-		if (!hostSecret) {
-			return c.json({ success: false, error: 'Host secret is required' }, 400);
+		const body = await c.req.json();
+		const result = hostAuthRequestSchema.safeParse(body);
+		if (!result.success) {
+			return c.json({ success: false, error: z.prettifyError(result.error) } satisfies ApiResponse, 400);
 		}
+		const { hostSecret } = result.data;
 		const durableObjectStub = c.env.GlobalDurableObject.get(c.env.GlobalDurableObject.idFromName('global'));
 		const data = await durableObjectStub.getFullGameState();
 		if (!data) {
@@ -120,10 +147,12 @@ export function userRoutes(app: Hono<{ Bindings: Env }>) {
 		return c.json({ success: true, data } satisfies ApiResponse<GameState>);
 	});
 	app.post('/api/games/:gameId/players', async (c) => {
-		const { name, playerId } = await c.req.json<{ name: string; playerId: string }>();
-		if (!name || !playerId) {
-			return c.json({ success: false, error: 'Name and playerId are required' }, 400);
+		const body = await c.req.json();
+		const result = playerJoinRequestSchema.safeParse(body);
+		if (!result.success) {
+			return c.json({ success: false, error: z.prettifyError(result.error) } satisfies ApiResponse, 400);
 		}
+		const { name, playerId } = result.data;
 		const durableObjectStub = c.env.GlobalDurableObject.get(c.env.GlobalDurableObject.idFromName('global'));
 		const data = await durableObjectStub.addPlayer(name, playerId);
 		if ('error' in data) {
@@ -132,7 +161,20 @@ export function userRoutes(app: Hono<{ Bindings: Env }>) {
 		return c.json({ success: true, data } satisfies ApiResponse<GameState>);
 	});
 	app.post('/api/games/:gameId/start', async (c) => {
+		const body = await c.req.json();
+		const result = hostAuthRequestSchema.safeParse(body);
+		if (!result.success) {
+			return c.json({ success: false, error: z.prettifyError(result.error) } satisfies ApiResponse, 400);
+		}
+		const { hostSecret } = result.data;
 		const durableObjectStub = c.env.GlobalDurableObject.get(c.env.GlobalDurableObject.idFromName('global'));
+		const state = await durableObjectStub.getFullGameState();
+		if (!state) {
+			return c.json({ success: false, error: 'Game not found' }, 404);
+		}
+		if (state.hostSecret !== hostSecret) {
+			return c.json({ success: false, error: 'Forbidden' }, 403);
+		}
 		const data = await durableObjectStub.startGame();
 		if ('error' in data) {
 			return c.json({ success: false, error: data.error }, 400);
@@ -140,10 +182,12 @@ export function userRoutes(app: Hono<{ Bindings: Env }>) {
 		return c.json({ success: true, data } satisfies ApiResponse<GameState>);
 	});
 	app.post('/api/games/:gameId/answer', async (c) => {
-		const { playerId, answerIndex } = await c.req.json<{ playerId: string; answerIndex: number }>();
-		if (playerId === undefined || answerIndex === undefined) {
-			return c.json({ success: false, error: 'playerId and answerIndex are required' }, 400);
+		const body = await c.req.json();
+		const result = submitAnswerRequestSchema.safeParse(body);
+		if (!result.success) {
+			return c.json({ success: false, error: z.prettifyError(result.error) } satisfies ApiResponse, 400);
 		}
+		const { playerId, answerIndex } = result.data;
 		const durableObjectStub = c.env.GlobalDurableObject.get(c.env.GlobalDurableObject.idFromName('global'));
 		const data = await durableObjectStub.submitAnswer(playerId, answerIndex);
 		if ('error' in data) {
@@ -152,7 +196,20 @@ export function userRoutes(app: Hono<{ Bindings: Env }>) {
 		return c.json({ success: true, data } satisfies ApiResponse<GameState>);
 	});
 	app.post('/api/games/:gameId/next', async (c) => {
+		const body = await c.req.json();
+		const result = hostAuthRequestSchema.safeParse(body);
+		if (!result.success) {
+			return c.json({ success: false, error: z.prettifyError(result.error) } satisfies ApiResponse, 400);
+		}
+		const { hostSecret } = result.data;
 		const durableObjectStub = c.env.GlobalDurableObject.get(c.env.GlobalDurableObject.idFromName('global'));
+		const state = await durableObjectStub.getFullGameState();
+		if (!state) {
+			return c.json({ success: false, error: 'Game not found' }, 404);
+		}
+		if (state.hostSecret !== hostSecret) {
+			return c.json({ success: false, error: 'Forbidden' }, 403);
+		}
 		const data = await durableObjectStub.nextState();
 		if ('error' in data) {
 			return c.json({ success: false, error: data.error }, 400);

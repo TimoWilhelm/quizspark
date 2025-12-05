@@ -79,25 +79,11 @@ function CountdownTimer({ timeLeft, totalTime }: CountdownTimerProps) {
 			</AnimatePresence>
 
 			{/* Background circle container */}
-			<div
-				className="relative bg-white rounded-full shadow-lg flex items-center justify-center"
-				style={{ width: size, height: size }}
-			>
+			<div className="relative bg-white rounded-full shadow-lg flex items-center justify-center" style={{ width: size, height: size }}>
 				{/* SVG Progress Ring */}
-				<svg
-					className="absolute inset-0 -rotate-90"
-					width={size}
-					height={size}
-				>
+				<svg className="absolute inset-0 -rotate-90" width={size} height={size}>
 					{/* Background track */}
-					<circle
-						cx={size / 2}
-						cy={size / 2}
-						r={radius}
-						fill="none"
-						stroke="#e5e7eb"
-						strokeWidth={strokeWidth}
-					/>
+					<circle cx={size / 2} cy={size / 2} r={radius} fill="none" stroke="#e5e7eb" strokeWidth={strokeWidth} />
 					{/* Progress arc */}
 					<motion.circle
 						cx={size / 2}

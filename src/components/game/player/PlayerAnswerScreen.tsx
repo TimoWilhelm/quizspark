@@ -147,107 +147,107 @@ export function PlayerAnswerScreen({ onAnswer, submittedAnswer, optionIndices }:
 							boxShadow: '0 10px 40px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.2)',
 						}}
 					>
-							{/* Inner glow */}
+						{/* Inner glow */}
+						<motion.div
+							className="absolute inset-0 bg-gradient-to-t from-transparent via-transparent to-white/10 rounded-2xl"
+							animate={isSelected && showPulse ? { opacity: [0.1, 0.3, 0.1] } : {}}
+							transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
+						/>
+
+						{/* Selection ring effect */}
+						{isSelected && (
 							<motion.div
-								className="absolute inset-0 bg-gradient-to-t from-transparent via-transparent to-white/10 rounded-2xl"
-								animate={isSelected && showPulse ? { opacity: [0.1, 0.3, 0.1] } : {}}
-								transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
+								initial={{ opacity: 0, scale: 0.8 }}
+								animate={{ opacity: 1, scale: 1 }}
+								transition={{ delay: 0.3, duration: 0.5, ease: 'easeOut' }}
+								className="absolute inset-0 rounded-2xl ring-4 ring-white/50 ring-offset-4 ring-offset-transparent"
 							/>
+						)}
 
-							{/* Selection ring effect */}
-							{isSelected && (
+						{/* Pulsing rings for selected button */}
+						{isSelected && showPulse && (
+							<>
 								<motion.div
-									initial={{ opacity: 0, scale: 0.8 }}
-									animate={{ opacity: 1, scale: 1 }}
-									transition={{ delay: 0.3, duration: 0.5, ease: 'easeOut' }}
-									className="absolute inset-0 rounded-2xl ring-4 ring-white/50 ring-offset-4 ring-offset-transparent"
+									initial={{ opacity: 0.6, scale: 1 }}
+									animate={{ opacity: 0, scale: 1.3 }}
+									transition={{ duration: 1.5, repeat: Infinity, ease: 'easeOut' }}
+									className="absolute inset-0 rounded-2xl border-2 border-white/40"
 								/>
-							)}
-
-							{/* Pulsing rings for selected button */}
-							{isSelected && showPulse && (
-								<>
-									<motion.div
-										initial={{ opacity: 0.6, scale: 1 }}
-										animate={{ opacity: 0, scale: 1.3 }}
-										transition={{ duration: 1.5, repeat: Infinity, ease: 'easeOut' }}
-										className="absolute inset-0 rounded-2xl border-2 border-white/40"
-									/>
-									<motion.div
-										initial={{ opacity: 0.4, scale: 1 }}
-										animate={{ opacity: 0, scale: 1.5 }}
-										transition={{ duration: 1.5, repeat: Infinity, ease: 'easeOut', delay: 0.5 }}
-										className="absolute inset-0 rounded-2xl border-2 border-white/30"
-									/>
-								</>
-							)}
-
-							{/* Shape icon */}
-							<motion.svg
-								viewBox="0 0 24 24"
-								className="w-1/2 h-1/2 text-white fill-current drop-shadow-lg"
-								animate={
-									isSelected
-										? {
-												scale: [1, 1.1, 1],
-												rotate: [0, 5, -5, 0],
-											}
-										: {}
-								}
-								transition={
-									isSelected
-										? {
-												duration: 0.6,
-												delay: 0.4,
-												ease: 'easeInOut',
-											}
-										: {}
-								}
-							>
-								<path d={shapePaths[originalIndex]} />
-							</motion.svg>
-
-							{/* Shimmer effect on hover */}
-							{submittedAnswer === null && (
 								<motion.div
-									className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -skew-x-12"
-									initial={{ x: '-200%' }}
-									whileHover={{ x: '200%' }}
-									transition={{ duration: 0.6 }}
+									initial={{ opacity: 0.4, scale: 1 }}
+									animate={{ opacity: 0, scale: 1.5 }}
+									transition={{ duration: 1.5, repeat: Infinity, ease: 'easeOut', delay: 0.5 }}
+									className="absolute inset-0 rounded-2xl border-2 border-white/30"
 								/>
-							)}
+							</>
+						)}
 
-							{/* Sparkle particles for selected */}
-							{isSelected && showPulse && (
-								<>
-									{[...Array(6)].map((_, i) => (
-										<motion.div
-											key={i}
-											className="absolute w-2 h-2 bg-white rounded-full"
-											initial={{
-												x: 0,
-												y: 0,
-												opacity: 1,
-												scale: 0,
-											}}
-											animate={{
-												x: Math.cos((i * Math.PI * 2) / 6) * 100,
-												y: Math.sin((i * Math.PI * 2) / 6) * 100,
-												opacity: [1, 0],
-												scale: [0, 1, 0],
-											}}
-											transition={{
-												duration: 1,
-												delay: 0.6 + i * 0.1,
-												ease: 'easeOut',
-											}}
-										/>
-									))}
-								</>
-							)}
-						</motion.button>
-					);
-				})}
+						{/* Shape icon */}
+						<motion.svg
+							viewBox="0 0 24 24"
+							className="w-1/2 h-1/2 text-white fill-current drop-shadow-lg"
+							animate={
+								isSelected
+									? {
+											scale: [1, 1.1, 1],
+											rotate: [0, 5, -5, 0],
+										}
+									: {}
+							}
+							transition={
+								isSelected
+									? {
+											duration: 0.6,
+											delay: 0.4,
+											ease: 'easeInOut',
+										}
+									: {}
+							}
+						>
+							<path d={shapePaths[originalIndex]} />
+						</motion.svg>
+
+						{/* Shimmer effect on hover */}
+						{submittedAnswer === null && (
+							<motion.div
+								className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -skew-x-12"
+								initial={{ x: '-200%' }}
+								whileHover={{ x: '200%' }}
+								transition={{ duration: 0.6 }}
+							/>
+						)}
+
+						{/* Sparkle particles for selected */}
+						{isSelected && showPulse && (
+							<>
+								{[...Array(6)].map((_, i) => (
+									<motion.div
+										key={i}
+										className="absolute w-2 h-2 bg-white rounded-full"
+										initial={{
+											x: 0,
+											y: 0,
+											opacity: 1,
+											scale: 0,
+										}}
+										animate={{
+											x: Math.cos((i * Math.PI * 2) / 6) * 100,
+											y: Math.sin((i * Math.PI * 2) / 6) * 100,
+											opacity: [1, 0],
+											scale: [0, 1, 0],
+										}}
+										transition={{
+											duration: 1,
+											delay: 0.6 + i * 0.1,
+											ease: 'easeOut',
+										}}
+									/>
+								))}
+							</>
+						)}
+					</motion.button>
+				);
+			})}
 		</div>
 	);
 }
