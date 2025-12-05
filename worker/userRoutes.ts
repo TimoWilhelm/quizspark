@@ -2,6 +2,7 @@ import { Hono } from 'hono';
 import { Env } from './core-utils';
 import { QUIZ_TOPICS } from './durableObject';
 import type { ApiResponse, GameState, QuizTopic, Quiz } from '@shared/types';
+import { generateQuizFromPrompt } from './ai';
 
 export function userRoutes(app: Hono<{ Bindings: Env }>) {
 	// WebSocket upgrade endpoint - forwards to Durable Object
@@ -62,6 +63,29 @@ export function userRoutes(app: Hono<{ Bindings: Env }>) {
 			return c.json({ success: false, error: 'Quiz not found' }, 404);
 		}
 		return c.json({ success: true });
+	});
+	// AI Quiz Generation endpoint
+	app.post('/api/quizzes/generate', async (c) => {
+		try {
+			const { prompt, numQuestions } = await c.req.json<{ prompt: string; numQuestions?: number }>();
+			if (!prompt || typeof prompt !== 'string' || prompt.trim().length === 0) {
+				return c.json({ success: false, error: 'Prompt is required' } satisfies ApiResponse, 400);
+			}
+			const generatedQuiz = await generateQuizFromPrompt(prompt.trim(), numQuestions ?? 5);
+			// Save the generated quiz as a custom quiz
+			const durableObjectStub = c.env.GlobalDurableObject.get(c.env.GlobalDurableObject.idFromName('global'));
+			const savedQuiz = await durableObjectStub.saveCustomQuiz({
+				title: generatedQuiz.title,
+				questions: generatedQuiz.questions,
+			});
+			return c.json({ success: true, data: savedQuiz } satisfies ApiResponse<Quiz>, 201);
+		} catch (error) {
+			console.error('[AI Quiz Generation Error]', error);
+			return c.json(
+				{ success: false, error: error instanceof Error ? error.message : 'Failed to generate quiz' } satisfies ApiResponse,
+				500,
+			);
+		}
 	});
 	app.post('/api/games', async (c) => {
 		const { quizId } = await c.req.json<{ quizId?: string }>();

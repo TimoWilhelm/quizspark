@@ -1,14 +1,18 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Sparkles, Loader2, CheckCircle, Pencil, Trash2, PlusCircle } from 'lucide-react';
+import { Sparkles, Loader2, CheckCircle, Pencil, Trash2, PlusCircle, Wand2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { Toaster, toast } from 'sonner';
 import type { ApiResponse, GameState, QuizTopic, Quiz } from '@shared/types';
 import { cn } from '@/lib/utils';
 import { motion } from 'framer-motion';
 import { useHostStore } from '@/lib/host-store';
+
 export function HomePage() {
 	const navigate = useNavigate();
 	const [isLoading, setIsLoading] = useState(false);
@@ -16,7 +20,11 @@ export function HomePage() {
 	const [predefinedQuizzes, setPredefinedQuizzes] = useState<QuizTopic[]>([]);
 	const [customQuizzes, setCustomQuizzes] = useState<Quiz[]>([]);
 	const [selectedQuizId, setSelectedQuizId] = useState<string | null>(null);
+	const [aiPrompt, setAiPrompt] = useState('');
+	const [isGenerating, setIsGenerating] = useState(false);
+	const [isAiDialogOpen, setIsAiDialogOpen] = useState(false);
 	const addSecret = useHostStore((s) => s.addSecret);
+
 	const fetchQuizzes = async () => {
 		setIsLoading(true);
 		try {
@@ -36,9 +44,11 @@ export function HomePage() {
 			setIsLoading(false);
 		}
 	};
+
 	useEffect(() => {
 		fetchQuizzes();
 	}, []);
+
 	const handleStartGame = async () => {
 		if (!selectedQuizId) {
 			toast.error('Please select a quiz to start.');
@@ -72,6 +82,7 @@ export function HomePage() {
 			setIsGameStarting(false);
 		}
 	};
+
 	const handleDeleteQuiz = async (e: React.MouseEvent, quizId: string) => {
 		e.stopPropagation();
 		if (window.confirm('Are you sure you want to delete this quiz?')) {
@@ -80,12 +91,43 @@ export function HomePage() {
 				if (!res.ok) throw new Error('Failed to delete quiz');
 				toast.success('Quiz deleted!');
 				if (selectedQuizId === quizId) setSelectedQuizId(null);
-				fetchQuizzes(); // Refresh list
+				fetchQuizzes();
 			} catch (err) {
 				toast.error('Could not delete quiz.');
 			}
 		}
 	};
+
+	const handleGenerateAiQuiz = async () => {
+		if (!aiPrompt.trim()) {
+			toast.error('Please enter a topic or prompt for your quiz.');
+			return;
+		}
+		setIsGenerating(true);
+		try {
+			const response = await fetch('/api/quizzes/generate', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ prompt: aiPrompt.trim(), numQuestions: 5 }),
+			});
+			const result = (await response.json()) as ApiResponse<Quiz>;
+			if (result.success && result.data) {
+				toast.success(`Quiz "${result.data.title}" generated successfully!`);
+				setAiPrompt('');
+				setIsAiDialogOpen(false);
+				setSelectedQuizId(result.data.id);
+				fetchQuizzes();
+			} else {
+				throw new Error(result.error || 'Failed to generate quiz');
+			}
+		} catch (error: any) {
+			console.error(error);
+			toast.error(error.message || 'Could not generate quiz. Please try again.');
+		} finally {
+			setIsGenerating(false);
+		}
+	};
+
 	return (
 		<div className="min-h-screen w-full flex flex-col items-center justify-center bg-slate-50 text-slate-900 p-4 overflow-hidden relative">
 			<div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-fuchsia-100 to-slate-50 opacity-50 pointer-events-none" />
@@ -192,6 +234,65 @@ export function HomePage() {
 											<PlusCircle className="w-6 h-6 mr-2" /> Create New Quiz
 										</div>
 									</Card>
+								</motion.div>
+								<motion.div
+									initial={{ opacity: 0, y: 20 }}
+									animate={{ opacity: 1, y: 0 }}
+									transition={{ delay: (predefinedQuizzes.length + customQuizzes.length + 1) * 0.1 }}
+								>
+									<Dialog open={isAiDialogOpen} onOpenChange={setIsAiDialogOpen}>
+										<DialogTrigger asChild>
+											<Card className="cursor-pointer hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 rounded-2xl border-dashed border-2 border-quiz-blue/50 flex items-center justify-center h-full min-h-[95px] bg-gradient-to-br from-quiz-blue/5 to-quiz-pink/5">
+												<div className="flex items-center text-quiz-blue font-medium">
+													<Wand2 className="w-6 h-6 mr-2" /> Generate with AI
+												</div>
+											</Card>
+										</DialogTrigger>
+										<DialogContent className="sm:max-w-[425px]">
+											<DialogHeader>
+												<DialogTitle className="flex items-center gap-2">
+													<Wand2 className="w-5 h-5 text-quiz-blue" />
+													Generate Quiz with AI
+												</DialogTitle>
+												<DialogDescription>
+													Describe the topic or theme for your quiz and AI will create engaging questions for you.
+												</DialogDescription>
+											</DialogHeader>
+											<div className="grid gap-4 py-4">
+												<div className="grid gap-2">
+													<Label htmlFor="ai-prompt">Topic or Prompt</Label>
+													<Input
+														id="ai-prompt"
+														placeholder="e.g., World War II history, JavaScript basics, Famous artists..."
+														value={aiPrompt}
+														onChange={(e) => setAiPrompt(e.target.value)}
+														onKeyDown={(e) => e.key === 'Enter' && !isGenerating && handleGenerateAiQuiz()}
+														disabled={isGenerating}
+														className="col-span-3"
+													/>
+												</div>
+											</div>
+											<DialogFooter>
+												<Button
+													onClick={handleGenerateAiQuiz}
+													disabled={isGenerating || !aiPrompt.trim()}
+													className="bg-quiz-blue hover:bg-quiz-blue/90"
+												>
+													{isGenerating ? (
+														<>
+															<Loader2 className="mr-2 h-4 w-4 animate-spin" />
+															Generating...
+														</>
+													) : (
+														<>
+															<Wand2 className="mr-2 h-4 w-4" />
+															Generate Quiz
+														</>
+													)}
+												</Button>
+											</DialogFooter>
+										</DialogContent>
+									</Dialog>
 								</motion.div>
 							</div>
 						</section>

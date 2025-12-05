@@ -4,9 +4,11 @@ import type { GameState } from '@shared/types';
 interface GameStoreState {
 	gameState: GameState | null;
 	gameId: string | null;
+	gamePin: string | null;
 	playerId: string | null;
 	nickname: string | null;
 	setGameState: (state: GameState) => void;
+	setGamePin: (pin: string) => void;
 	setSession: (session: { gameId: string; playerId: string; nickname: string }) => void;
 	clearSession: () => void;
 }
@@ -15,9 +17,11 @@ export const useGameStore = create<GameStoreState>()(
 		(set) => ({
 			gameState: null,
 			gameId: null,
+			gamePin: null,
 			playerId: null,
 			nickname: null,
 			setGameState: (state) => set({ gameState: state }),
+			setGamePin: (pin) => set({ gamePin: pin }),
 			setSession: (session) =>
 				set({
 					gameId: session.gameId,
@@ -27,6 +31,7 @@ export const useGameStore = create<GameStoreState>()(
 			clearSession: () =>
 				set({
 					gameId: null,
+					gamePin: null,
 					playerId: null,
 					nickname: null,
 					gameState: null,
