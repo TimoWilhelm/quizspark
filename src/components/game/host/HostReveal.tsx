@@ -1,20 +1,23 @@
-import { useGameStore } from '@/lib/game-store';
 import { Button } from '@/components/ui/button';
 import { motion } from 'framer-motion';
 import { CheckCircle } from 'lucide-react';
-export function HostReveal({ onNext }: { onNext: () => void }) {
-	const question = useGameStore((s) => s.gameState?.questions[s.gameState.currentQuestionIndex]);
-	const answers = useGameStore((s) => s.gameState?.answers);
-	const players = useGameStore((s) => s.gameState?.players);
-	if (!question || !answers || !players) return null;
-	const answerCounts = question.options.map((_, i) => answers.filter((a) => a.answerIndex === i).length);
-	const totalAnswers = answers.length;
+
+interface HostRevealProps {
+	onNext: () => void;
+	questionText: string;
+	options: string[];
+	correctAnswerIndex: number;
+	answerCounts: number[];
+}
+
+export function HostReveal({ onNext, questionText, options, correctAnswerIndex, answerCounts }: HostRevealProps) {
+	const totalAnswers = answerCounts.reduce((a, b) => a + b, 0);
 	return (
 		<div className="flex-grow flex flex-col items-center justify-center p-4 sm:p-8 space-y-6">
-			<h2 className="text-3xl sm:text-5xl font-bold text-center mb-4">{question.text}</h2>
+			<h2 className="text-3xl sm:text-5xl font-bold text-center mb-4">{questionText}</h2>
 			<div className="w-full max-w-4xl space-y-4">
-				{question.options.map((option, i) => {
-					const isCorrect = i === question.correctAnswerIndex;
+				{options.map((option, i) => {
+					const isCorrect = i === correctAnswerIndex;
 					const count = answerCounts[i];
 					const percentage = totalAnswers > 0 ? (count / totalAnswers) * 100 : 0;
 					return (

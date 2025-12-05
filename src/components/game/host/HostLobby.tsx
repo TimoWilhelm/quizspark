@@ -1,13 +1,17 @@
 import { Users } from 'lucide-react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { useGameStore } from '@/lib/game-store';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { QRCode } from '@/components/game/QRCode';
-export function HostLobby({ onStart }: { onStart: () => void }) {
-	const gameState = useGameStore((s) => s.gameState);
-	const players = gameState?.players;
-	const joinUrl = `${window.location.origin}/play?gameId=${gameState?.id}`;
+
+interface HostLobbyProps {
+	onStart: () => void;
+	players: { id: string; name: string }[];
+	gameId: string;
+}
+
+export function HostLobby({ onStart, players, gameId }: HostLobbyProps) {
+	const joinUrl = `${window.location.origin}/play?gameId=${gameId}`;
 	return (
 		<div className="flex-grow flex flex-col items-center justify-center p-4 sm:p-8 space-y-6">
 			<motion.h1 initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} className="text-4xl md:text-5xl font-bold text-center">
@@ -30,12 +34,12 @@ export function HostLobby({ onStart }: { onStart: () => void }) {
 				<Card className="rounded-2xl">
 					<CardHeader>
 						<CardTitle className="flex items-center gap-2">
-							<Users /> Players ({players?.length || 0})
+							<Users /> Players ({players.length})
 						</CardTitle>
 					</CardHeader>
 					<CardContent className="flex flex-wrap gap-3 p-4 min-h-[60px]">
 						<AnimatePresence>
-							{players?.map((p) => (
+							{players.map((p) => (
 								<motion.div
 									key={p.id}
 									initial={{ opacity: 0, scale: 0.5 }}
@@ -56,7 +60,7 @@ export function HostLobby({ onStart }: { onStart: () => void }) {
 					onClick={onStart}
 					size="lg"
 					className="bg-quiz-blue text-white text-2xl font-bold px-12 py-8 rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 active:scale-95"
-					disabled={(players?.length || 0) < 1}
+					disabled={players.length < 1}
 				>
 					Start Game
 				</Button>

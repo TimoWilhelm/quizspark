@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { useGameStore } from '@/lib/game-store';
+
 const shapeColors = [
 	'bg-quiz-red', // Triangle
 	'bg-quiz-blue', // Diamond
@@ -13,16 +13,37 @@ const shapePaths = [
 	'M22 12c0 5.523-4.477 10-10 10S2 17.523 2 12 6.477 2 12 2s10 4.477 10 10z', // Circle
 	'M2 2h20v20H2V2z', // Square
 ];
-export function HostQuestion({ onNext }: { onNext: () => void }) {
-	const question = useGameStore((s) => s.gameState?.questions[s.gameState.currentQuestionIndex]);
-	const index = useGameStore((s) => s.gameState?.currentQuestionIndex);
-	const total = useGameStore((s) => s.gameState?.questions.length);
-	const startTime = useGameStore((s) => s.gameState?.questionStartTime);
-	const [timeLeft, setTimeLeft] = React.useState(20);
+
+interface HostQuestionProps {
+	onNext: () => void;
+	questionText: string;
+	options: string[];
+	questionIndex: number;
+	totalQuestions: number;
+	startTime: number;
+	timeLimitMs: number;
+	answeredCount: number;
+	totalPlayers: number;
+}
+
+export function HostQuestion({
+	onNext,
+	questionText,
+	options,
+	questionIndex,
+	totalQuestions,
+	startTime,
+	timeLimitMs,
+	answeredCount,
+	totalPlayers,
+}: HostQuestionProps) {
+	const timeLimitSec = timeLimitMs / 1000;
+	const [timeLeft, setTimeLeft] = React.useState(timeLimitSec);
+
 	React.useEffect(() => {
 		const timer = setInterval(() => {
-			const elapsed = (Date.now() - (startTime || Date.now())) / 1000;
-			const remaining = Math.max(0, 20 - elapsed);
+			const elapsed = (Date.now() - startTime) / 1000;
+			const remaining = Math.max(0, timeLimitSec - elapsed);
 			setTimeLeft(Math.ceil(remaining));
 			if (remaining <= 0) {
 				clearInterval(timer);
@@ -30,14 +51,18 @@ export function HostQuestion({ onNext }: { onNext: () => void }) {
 			}
 		}, 250);
 		return () => clearInterval(timer);
-	}, [startTime, onNext]);
-	if (!question) return null;
+	}, [startTime, timeLimitSec, onNext]);
 	return (
 		<div className="flex-grow flex flex-col p-4 sm:p-8">
 			<div className="flex justify-between items-center mb-4">
-				<span className="text-xl sm:text-2xl font-bold">
-					Question {index! + 1}/{total}
-				</span>
+				<div className="flex flex-col">
+					<span className="text-xl sm:text-2xl font-bold">
+						Question {questionIndex + 1}/{totalQuestions}
+					</span>
+					<span className="text-sm text-muted-foreground">
+						{answeredCount}/{totalPlayers} answered
+					</span>
+				</div>
 				<motion.div
 					key={timeLeft}
 					initial={{ scale: 1.2, opacity: 0 }}
@@ -49,10 +74,10 @@ export function HostQuestion({ onNext }: { onNext: () => void }) {
 				</motion.div>
 			</div>
 			<div className="flex-grow center bg-white rounded-2xl shadow-lg p-4 sm:p-8 mb-4 sm:mb-8">
-				<h2 className="text-3xl sm:text-5xl font-bold text-center">{question.text}</h2>
+				<h2 className="text-3xl sm:text-5xl font-bold text-center">{questionText}</h2>
 			</div>
 			<div className="grid grid-cols-1 md:grid-cols-2 gap-2 sm:gap-4">
-				{question.options.map((option, i) => (
+				{options.map((option, i) => (
 					<motion.div
 						key={i}
 						initial={{ opacity: 0, y: 20 }}

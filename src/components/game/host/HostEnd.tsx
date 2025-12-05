@@ -1,8 +1,14 @@
-import { useGameStore } from '@/lib/game-store';
 import { Button } from '@/components/ui/button';
 import { motion } from 'framer-motion';
-import type { Player } from '@shared/types';
-function PodiumPlace({ player, rank }: { player: Player; rank: number }) {
+
+interface LeaderboardEntry {
+	id: string;
+	name: string;
+	score: number;
+	rank: number;
+}
+
+function PodiumPlace({ player, rank }: { player: LeaderboardEntry; rank: number }) {
 	const height = rank === 1 ? 'h-64' : rank === 2 ? 'h-48' : 'h-32';
 	const color = rank === 1 ? 'bg-yellow-400' : rank === 2 ? 'bg-gray-400' : 'bg-yellow-600';
 	const delay = rank === 1 ? 0.4 : rank === 2 ? 0.2 : 0.6;
@@ -23,9 +29,13 @@ function PodiumPlace({ player, rank }: { player: Player; rank: number }) {
 		</motion.div>
 	);
 }
-export function HostEnd() {
-	const players = useGameStore((s) => s.gameState?.players);
-	const top3 = players?.slice(0, 3) || [];
+
+interface HostEndProps {
+	leaderboard: LeaderboardEntry[];
+}
+
+export function HostEnd({ leaderboard }: HostEndProps) {
+	const top3 = leaderboard.slice(0, 3);
 	// Reorder for visual podium: 2nd, 1st, 3rd
 	const podiumOrder = [top3[1], top3[0], top3[2]];
 	return (

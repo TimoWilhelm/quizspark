@@ -1,12 +1,23 @@
-import { useGameStore } from '@/lib/game-store';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Crown, Trophy } from 'lucide-react';
 import { motion } from 'framer-motion';
-export function HostLeaderboard({ onNext }: { onNext: () => void }) {
-	const players = useGameStore((s) => s.gameState?.players);
-	const isLastQuestion = useGameStore((s) => (s.gameState ? s.gameState.currentQuestionIndex === s.gameState.questions.length - 1 : false));
-	const top5 = players?.slice(0, 5) || [];
+
+interface LeaderboardEntry {
+	id: string;
+	name: string;
+	score: number;
+	rank: number;
+}
+
+interface HostLeaderboardProps {
+	onNext: () => void;
+	leaderboard: LeaderboardEntry[];
+	isLastQuestion: boolean;
+}
+
+export function HostLeaderboard({ onNext, leaderboard, isLastQuestion }: HostLeaderboardProps) {
+	const top5 = leaderboard.slice(0, 5);
 	return (
 		<div className="flex-grow flex flex-col items-center justify-center p-4 sm:p-8 space-y-8">
 			<motion.h1

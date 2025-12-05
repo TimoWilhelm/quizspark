@@ -1,15 +1,23 @@
 import { CheckCircle, XCircle, Loader2, Trophy } from 'lucide-react';
 import { motion } from 'framer-motion';
 import type { GamePhase } from '@shared/types';
-import { useGameStore } from '@/lib/game-store';
+
+interface LeaderboardEntry {
+	id: string;
+	name: string;
+	score: number;
+	rank: number;
+}
+
 interface PlayerWaitingScreenProps {
 	phase: GamePhase;
 	answerResult: { isCorrect: boolean; score: number } | null;
 	finalScore?: number;
 	playerId: string | null;
+	leaderboard?: LeaderboardEntry[];
 }
-export function PlayerWaitingScreen({ phase, answerResult, finalScore, playerId }: PlayerWaitingScreenProps) {
-	const players = useGameStore((s) => s.gameState?.players) || [];
+
+export function PlayerWaitingScreen({ phase, answerResult, finalScore, playerId, leaderboard = [] }: PlayerWaitingScreenProps) {
 	const renderContent = () => {
 		switch (phase) {
 			case 'LOBBY':
@@ -38,8 +46,9 @@ export function PlayerWaitingScreen({ phase, answerResult, finalScore, playerId 
 					</div>
 				);
 			case 'LEADERBOARD': {
-				const myRank = players.findIndex((p) => p.id === playerId) + 1;
-				const top3 = players.slice(0, 3);
+				const myEntry = leaderboard.find((p) => p.id === playerId);
+				const myRank = myEntry?.rank ?? 0;
+				const top3 = leaderboard.slice(0, 3);
 				return (
 					<div className="text-center">
 						<h2 className="text-4xl font-bold mb-4">Current Standings</h2>

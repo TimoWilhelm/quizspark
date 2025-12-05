@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useGameStore } from '@/lib/game-store';
-import { useGamePolling } from '@/hooks/useGamePolling';
+import { useGameWebSocket } from '@/hooks/useGameWebSocket';
 import { Loader2 } from 'lucide-react';
 import { Toaster, toast } from 'sonner';
 import { AnimatePresence } from 'framer-motion';
@@ -9,134 +9,226 @@ import { PlayerNicknameForm } from '@/components/game/player/PlayerNicknameForm'
 import { PlayerAnswerScreen } from '@/components/game/player/PlayerAnswerScreen';
 import { PlayerWaitingScreen } from '@/components/game/player/PlayerWaitingScreen';
 import { useSound } from '@/hooks/useSound';
-type View = 'LOADING' | 'NICKNAME' | 'GAME';
+
+type View = 'LOADING' | 'NICKNAME' | 'GAME' | 'GAME_IN_PROGRESS';
+
 export function PlayerPage() {
 	const navigate = useNavigate();
 	const [searchParams] = useSearchParams();
 	const urlGameId = searchParams.get('gameId');
-	// Zustand state
-	const gameState = useGameStore((s) => s.gameState);
+
+	// Zustand state for session persistence
 	const sessionGameId = useGameStore((s) => s.gameId);
-	const playerId = useGameStore((s) => s.playerId);
+	const storedPlayerId = useGameStore((s) => s.playerId);
 	const nickname = useGameStore((s) => s.nickname);
-	const setGameState = useGameStore((s) => s.setGameState);
 	const setSession = useGameStore((s) => s.setSession);
 	const clearSession = useGameStore((s) => s.clearSession);
+
 	const [view, setView] = useState<View>('LOADING');
-	const [isJoining, setIsJoining] = useState(false);
-	const [submittedAnswer, setSubmittedAnswer] = useState<number | null>(null);
+	const [currentPlayerId, setCurrentPlayerId] = useState<string | undefined>(storedPlayerId ?? undefined);
+	const [currentNickname, setCurrentNickname] = useState<string>(nickname ?? '');
+	const pendingNicknameRef = useRef<string>(nickname ?? '');
 	const [answerResult, setAnswerResult] = useState<{ isCorrect: boolean; score: number } | null>(null);
-	const [optionIndices, setOptionIndices] = useState<number[]>([]);
+	const [totalScore, setTotalScore] = useState(0);
 	const { playSound } = useSound();
+
+	// Determine initial view
 	useEffect(() => {
 		if (!urlGameId) {
 			toast.error('No game ID found. Returning to home page.');
 			navigate('/');
 			return;
 		}
+
 		// Case 1: Player has a session for this game -> Reconnect
-		if (playerId && sessionGameId === urlGameId) {
+		if (storedPlayerId && sessionGameId === urlGameId) {
+			setCurrentPlayerId(storedPlayerId);
+			setCurrentNickname(nickname ?? '');
+			pendingNicknameRef.current = nickname ?? '';
 			setView('GAME');
 		}
 		// Case 2: Player has a session for a *different* game -> Clear old session
-		else if (playerId && sessionGameId && sessionGameId !== urlGameId) {
+		else if (storedPlayerId && sessionGameId && sessionGameId !== urlGameId) {
 			clearSession();
+			setCurrentPlayerId(undefined);
 			setView('NICKNAME');
 		}
 		// Case 3: New player or cleared session
 		else {
 			setView('NICKNAME');
 		}
-	}, [urlGameId, sessionGameId, playerId, navigate, clearSession]);
-	const { isLoading, error } = useGamePolling(urlGameId!, view === 'GAME' && !!urlGameId);
-	const currentQuestionIndex = gameState?.currentQuestionIndex;
-	const questionOptionsCount = gameState?.questions[currentQuestionIndex ?? -1]?.options.length;
+	}, [urlGameId, sessionGameId, storedPlayerId, nickname, navigate, clearSession]);
+
+	const handleConnected = useCallback(
+		(playerId?: string) => {
+			if (playerId && urlGameId) {
+				setCurrentPlayerId(playerId);
+				// Update session with server-assigned playerId
+				// Use ref to get the latest nickname (avoids race condition with state)
+				const nicknameToSave = pendingNicknameRef.current;
+				if (nicknameToSave) {
+					setSession({ gameId: urlGameId, playerId, nickname: nicknameToSave });
+				}
+				setView('GAME');
+			} else if (!playerId && storedPlayerId) {
+				// We tried to reconnect with a stored playerId but server didn't recognize us
+				// Clear the invalid session - user will need to rejoin
+				clearSession();
+				setCurrentPlayerId(undefined);
+				pendingNicknameRef.current = '';
+				setCurrentNickname('');
+				// Show nickname form (handleError will override to GAME_IN_PROGRESS if game started)
+				setView('NICKNAME');
+			}
+		},
+		[urlGameId, setSession, storedPlayerId, clearSession],
+	);
+
+	const handleError = useCallback(
+		(msg: string) => {
+			if (msg === 'Game has already started') {
+				setView('GAME_IN_PROGRESS');
+			} else {
+				toast.error(msg);
+			}
+		},
+		[],
+	);
+
+	const {
+		isConnecting,
+		isConnected,
+		error,
+		gameState,
+		submittedAnswer,
+		join,
+		submitAnswer,
+	} = useGameWebSocket({
+		gameId: urlGameId!,
+		role: 'player',
+		playerId: currentPlayerId,
+		onError: handleError,
+		onConnected: handleConnected,
+	});
+
+	// Handle reveal results and update score immediately
 	useEffect(() => {
-		if (gameState?.phase === 'QUESTION' && questionOptionsCount) {
-			setSubmittedAnswer(null);
-			setAnswerResult(null);
-			const initialIndices = Array.from({ length: questionOptionsCount }, (_, i) => i);
-			setOptionIndices(initialIndices);
+		if (gameState.phase === 'REVEAL' && gameState.playerResult && !answerResult) {
+			setAnswerResult({
+				isCorrect: gameState.playerResult.isCorrect,
+				score: gameState.playerResult.score,
+			});
+			// Update total score immediately when reveal comes in
+			setTotalScore((prev) => prev + gameState.playerResult!.score);
+			playSound(gameState.playerResult.isCorrect ? 'correct' : 'incorrect');
 		}
-	}, [gameState?.phase, currentQuestionIndex, questionOptionsCount]);
+	}, [gameState.phase, gameState.playerResult, answerResult, playSound]);
+
+	// Sync total score with leaderboard when available (handles reconnection)
 	useEffect(() => {
-		if (gameState?.phase === 'REVEAL' && submittedAnswer !== null) {
-			const myAnswer = gameState.answers.find((a) => a.playerId === playerId);
-			if (myAnswer && !answerResult) {
-				const result = { isCorrect: myAnswer.isCorrect, score: myAnswer.score };
-				setAnswerResult(result);
-				playSound(result.isCorrect ? 'correct' : 'incorrect');
+		if (gameState.leaderboard.length > 0 && currentPlayerId) {
+			const myLeaderboardScore = gameState.leaderboard.find((p) => p.id === currentPlayerId)?.score;
+			if (myLeaderboardScore !== undefined) {
+				setTotalScore(myLeaderboardScore);
 			}
 		}
-	}, [gameState?.phase, gameState?.answers, playerId, submittedAnswer, playSound, answerResult]);
-	const handleJoin = async (name: string) => {
-		if (!name.trim() || !urlGameId) return;
-		setIsJoining(true);
-		const newPlayerId = crypto.randomUUID();
-		try {
-			const res = await fetch(`/api/games/${urlGameId}/players`, {
-				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({ name, playerId: newPlayerId }),
-			});
-			const data = await res.json();
-			if (!res.ok) throw new Error(data.error || 'Failed to join');
-			setSession({ gameId: urlGameId, playerId: newPlayerId, nickname: name });
-			setGameState(data.data);
-			setView('GAME');
+	}, [gameState.leaderboard, currentPlayerId]);
+
+	// Reset answer result on new question
+	useEffect(() => {
+		if (gameState.phase === 'QUESTION') {
+			setAnswerResult(null);
+		}
+	}, [gameState.phase, gameState.questionIndex]);
+
+	const handleJoin = useCallback(
+		(name: string) => {
+			if (!name.trim() || !urlGameId) return;
+			pendingNicknameRef.current = name; // Update ref immediately
+			setCurrentNickname(name);
+			join(name);
 			toast.success(`Welcome, ${name}!`);
 			playSound('join');
-		} catch (err: any) {
-			toast.error(err.message);
-		} finally {
-			setIsJoining(false);
-		}
-	};
-	const handleAnswer = async (answerIndex: number) => {
-		if (submittedAnswer !== null || !playerId || !urlGameId) return;
-		setSubmittedAnswer(answerIndex);
-		try {
-			await fetch(`/api/games/${urlGameId}/answer`, {
-				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({ playerId, answerIndex }),
-			});
-		} catch (err) {
-			console.error(err);
-			toast.error('Could not submit answer.');
-			setSubmittedAnswer(null);
-		}
-	};
-	if (view === 'LOADING') {
+			// Session will be saved in handleConnected when server confirms with playerId
+		},
+		[urlGameId, join, playSound],
+	);
+
+	const handleAnswer = useCallback(
+		(answerIndex: number) => {
+			submitAnswer(answerIndex);
+		},
+		[submitAnswer],
+	);
+
+	if (view === 'LOADING' || (view === 'GAME' && isConnecting && !isConnected)) {
 		return (
 			<div className="min-h-screen w-full flex items-center justify-center bg-slate-800">
 				<Loader2 className="h-16 w-16 animate-spin text-white" />
 			</div>
 		);
 	}
+
 	if (view === 'NICKNAME') {
 		return (
 			<>
-				<PlayerNicknameForm onJoin={handleJoin} isLoading={isJoining} />
+				<PlayerNicknameForm onJoin={handleJoin} isLoading={isConnecting} />
 				<Toaster richColors />
 			</>
 		);
 	}
-	const me = gameState?.players.find((p) => p.id === playerId);
+
+	if (view === 'GAME_IN_PROGRESS') {
+		return (
+			<div className="min-h-screen w-full flex flex-col items-center justify-center bg-slate-800 text-white p-8">
+				<div className="text-6xl mb-6">🎮</div>
+				<h1 className="text-3xl font-bold mb-4 text-center">Game Already In Progress</h1>
+				<p className="text-lg text-slate-300 text-center max-w-md mb-8">
+					Sorry, this game has already started. You can wait for the next round or join a different game.
+				</p>
+				<button
+					onClick={() => navigate('/')}
+					className="px-6 py-3 bg-indigo-600 hover:bg-indigo-700 rounded-lg font-semibold transition-colors"
+				>
+					Back to Home
+				</button>
+			</div>
+		);
+	}
+
+	// Use tracked total score (updates on reveal, syncs with leaderboard when available)
+	const myScore = totalScore;
+
 	const renderGameContent = () => {
-		if (isLoading && !gameState) return <Loader2 className="h-16 w-16 animate-spin text-white" />;
-		if (error) return <div className="text-red-300">{error}</div>;
-		if (!gameState) return <div>Waiting for game...</div>;
-		if (gameState.phase === 'QUESTION' && optionIndices.length > 0) {
-			return <PlayerAnswerScreen onAnswer={handleAnswer} submittedAnswer={submittedAnswer} optionIndices={optionIndices} />;
+		if (error && !isConnected) return <div className="text-red-300">{error}</div>;
+
+		if (gameState.phase === 'QUESTION' && gameState.options.length > 0) {
+			const optionIndices = Array.from({ length: gameState.options.length }, (_, i) => i);
+			return (
+				<PlayerAnswerScreen
+					onAnswer={handleAnswer}
+					submittedAnswer={submittedAnswer}
+					optionIndices={optionIndices}
+				/>
+			);
 		}
-		return <PlayerWaitingScreen phase={gameState.phase} answerResult={answerResult} finalScore={me?.score} playerId={playerId} />;
+
+		return (
+			<PlayerWaitingScreen
+				phase={gameState.phase}
+				answerResult={answerResult}
+				finalScore={myScore}
+				playerId={currentPlayerId ?? null}
+				leaderboard={gameState.leaderboard}
+			/>
+		);
 	};
+
 	return (
 		<div className="min-h-screen w-full bg-slate-800 text-white flex flex-col p-4">
 			<header className="flex justify-between items-center text-2xl font-bold">
-				<span>{nickname}</span>
-				<span>Score: {me?.score || 0}</span>
+				<span>{currentNickname}</span>
+				<span>Score: {myScore}</span>
 			</header>
 			<main className="flex-grow flex items-center justify-center">
 				<AnimatePresence mode="wait">{renderGameContent()}</AnimatePresence>

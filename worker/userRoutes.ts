@@ -2,7 +2,25 @@ import { Hono } from 'hono';
 import { Env } from './core-utils';
 import { QUIZ_TOPICS } from './durableObject';
 import type { ApiResponse, GameState, QuizTopic, Quiz } from '@shared/types';
+
 export function userRoutes(app: Hono<{ Bindings: Env }>) {
+	// WebSocket upgrade endpoint - forwards to Durable Object
+	app.get('/api/games/:gameId/ws', async (c) => {
+		const upgradeHeader = c.req.header('Upgrade');
+		if (!upgradeHeader || upgradeHeader !== 'websocket') {
+			return c.text('Expected WebSocket upgrade', 426);
+		}
+
+		const durableObjectStub = c.env.GlobalDurableObject.get(c.env.GlobalDurableObject.idFromName('global'));
+
+		// Forward the WebSocket upgrade request to the Durable Object
+		const url = new URL(c.req.url);
+		url.pathname = '/websocket';
+
+		return durableObjectStub.fetch(new Request(url.toString(), {
+			headers: c.req.raw.headers,
+		}));
+	});
 	app.get('/api/quizzes', (c) => {
 		return c.json({ success: true, data: QUIZ_TOPICS } satisfies ApiResponse<QuizTopic[]>);
 	});

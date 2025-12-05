@@ -1,6 +1,4 @@
-import React, { useCallback } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import { useGameStore } from '@/lib/game-store';
 import { Loader2, ShieldAlert } from 'lucide-react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { Toaster, toast } from 'sonner';
@@ -9,36 +7,38 @@ import { HostQuestion } from '@/components/game/host/HostQuestion';
 import { HostReveal } from '@/components/game/host/HostReveal';
 import { HostLeaderboard } from '@/components/game/host/HostLeaderboard';
 import { HostEnd } from '@/components/game/host/HostEnd';
-import { useHostGamePolling } from '@/hooks/useHostGamePolling';
+import { useGameWebSocket } from '@/hooks/useGameWebSocket';
+import { useHostStore } from '@/lib/host-store';
 import { Button } from '@/components/ui/button';
+
 export function HostPage() {
 	const { gameId } = useParams<{ gameId: string }>();
-	const { isLoading, error } = useHostGamePolling(gameId!);
-	const gameState = useGameStore((s) => s.gameState);
-	const handleNext = useCallback(async () => {
-		try {
-			const res = await fetch(`/api/games/${gameId}/next`, { method: 'POST' });
-			if (!res.ok) throw new Error('Failed to advance game state');
-		} catch (err) {
-			toast.error('Could not proceed to the next step.');
-		}
-	}, [gameId]);
-	const handleStart = useCallback(async () => {
-		try {
-			const res = await fetch(`/api/games/${gameId}/start`, { method: 'POST' });
-			if (!res.ok) throw new Error('Failed to start game');
-		} catch (err) {
-			toast.error('Could not start the game.');
-		}
-	}, [gameId]);
-	if (isLoading && !gameState) {
+	const getSecret = useHostStore((s) => s.getSecret);
+	const hostSecret = getSecret(gameId!);
+
+	const {
+		isConnecting,
+		isConnected,
+		error,
+		gameState,
+		startGame,
+		nextState,
+	} = useGameWebSocket({
+		gameId: gameId!,
+		role: 'host',
+		hostSecret,
+		onError: (msg) => toast.error(msg),
+	});
+
+	if (isConnecting && !isConnected) {
 		return (
 			<div className="min-h-screen w-full flex items-center justify-center bg-slate-100">
 				<Loader2 className="h-16 w-16 animate-spin text-quiz-blue" />
 			</div>
 		);
 	}
-	if (error) {
+
+	if (error && !isConnected) {
 		return (
 			<div className="min-h-screen w-full flex flex-col items-center justify-center bg-red-100 text-red-800 p-4">
 				<ShieldAlert className="h-16 w-16 mb-4" />
@@ -50,25 +50,56 @@ export function HostPage() {
 			</div>
 		);
 	}
-	if (!gameState) {
-		return <div className="min-h-screen w-full flex items-center justify-center bg-slate-100">Game not found.</div>;
-	}
+
 	const renderContent = () => {
 		switch (gameState.phase) {
 			case 'LOBBY':
-				return <HostLobby onStart={handleStart} />;
+				return (
+					<HostLobby
+						onStart={startGame}
+						players={gameState.players}
+						gameId={gameState.gameId}
+					/>
+				);
 			case 'QUESTION':
-				return <HostQuestion onNext={handleNext} />;
+				return (
+					<HostQuestion
+						onNext={nextState}
+						questionText={gameState.questionText}
+						options={gameState.options}
+						questionIndex={gameState.questionIndex}
+						totalQuestions={gameState.totalQuestions}
+						startTime={gameState.startTime}
+						timeLimitMs={gameState.timeLimitMs}
+						answeredCount={gameState.answeredCount}
+						totalPlayers={gameState.players.length}
+					/>
+				);
 			case 'REVEAL':
-				return <HostReveal onNext={handleNext} />;
+				return (
+					<HostReveal
+						onNext={nextState}
+						questionText={gameState.questionText}
+						options={gameState.options}
+						correctAnswerIndex={gameState.correctAnswerIndex!}
+						answerCounts={gameState.answerCounts}
+					/>
+				);
 			case 'LEADERBOARD':
-				return <HostLeaderboard onNext={handleNext} />;
+				return (
+					<HostLeaderboard
+						onNext={nextState}
+						leaderboard={gameState.leaderboard}
+						isLastQuestion={gameState.isLastQuestion}
+					/>
+				);
 			case 'END':
-				return <HostEnd />;
+				return <HostEnd leaderboard={gameState.leaderboard} />;
 			default:
 				return <div>Unknown game phase.</div>;
 		}
 	};
+
 	return (
 		<div className="min-h-screen w-full bg-slate-100 text-slate-900 flex flex-col">
 			<AnimatePresence mode="wait">
