@@ -7,7 +7,18 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
-import { PlusCircle, Trash2, Loader2, Save, ArrowLeft } from 'lucide-react';
+import {
+	AlertDialog,
+	AlertDialogAction,
+	AlertDialogCancel,
+	AlertDialogContent,
+	AlertDialogDescription,
+	AlertDialogFooter,
+	AlertDialogHeader,
+	AlertDialogTitle,
+	AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
+import { PlusCircle, Trash2, Loader2, Save, ArrowLeft, ChevronUp, ChevronDown } from 'lucide-react';
 import { Toaster, toast } from 'sonner';
 import type { ApiResponse, Quiz, Question } from '@shared/types';
 import { quizFormSchema, LIMITS, type QuizFormInput } from '@shared/validation';
@@ -25,12 +36,13 @@ export function QuizEditorPage() {
 		handleSubmit,
 		reset,
 		getValues,
+		watch,
 		formState: { errors, isSubmitting },
 	} = useForm<QuizFormInput>({
 		resolver: zodResolver(quizFormSchema),
 		defaultValues: { title: '', questions: [] },
 	});
-	const { fields, append, remove, update } = useFieldArray({ control, name: 'questions' });
+	const { fields, append, remove, update, move } = useFieldArray({ control, name: 'questions' });
 	useEffect(() => {
 		if (quizId) {
 			const fetchQuiz = async () => {
@@ -117,6 +129,29 @@ export function QuizEditorPage() {
 			});
 		}
 	};
+	const moveOption = (qIndex: number, oIndex: number, direction: 'up' | 'down') => {
+		const currentQuestion = getValues(`questions.${qIndex}`);
+		const newIndex = direction === 'up' ? oIndex - 1 : oIndex + 1;
+		if (newIndex < 0 || newIndex >= currentQuestion.options.length) return;
+
+		const newOptions = [...currentQuestion.options];
+		[newOptions[oIndex], newOptions[newIndex]] = [newOptions[newIndex], newOptions[oIndex]];
+
+		// Update correctAnswerIndex if the correct answer was moved
+		const currentCorrect = parseInt(currentQuestion.correctAnswerIndex, 10);
+		let newCorrect = currentCorrect;
+		if (currentCorrect === oIndex) {
+			newCorrect = newIndex;
+		} else if (currentCorrect === newIndex) {
+			newCorrect = oIndex;
+		}
+
+		update(qIndex, {
+			...currentQuestion,
+			options: newOptions,
+			correctAnswerIndex: String(newCorrect),
+		});
+	};
 	return (
 		<div className="min-h-screen bg-slate-50">
 			<div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
@@ -141,13 +176,18 @@ export function QuizEditorPage() {
 						</CardHeader>
 						<CardContent>
 							<Label htmlFor="title">Quiz Title</Label>
-							<Input
-								id="title"
-								{...register('title')}
-								placeholder="e.g., 'Fun Facts Friday'"
-								className="text-lg"
-								maxLength={LIMITS.QUIZ_TITLE_MAX}
-							/>
+							<div className="relative">
+								<Input
+									id="title"
+									{...register('title')}
+									placeholder="e.g., 'Fun Facts Friday'"
+									className="text-lg pr-16"
+									maxLength={LIMITS.QUIZ_TITLE_MAX}
+								/>
+								<span className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-muted-foreground pointer-events-none">
+									{watch('title')?.length || 0}/{LIMITS.QUIZ_TITLE_MAX}
+								</span>
+							</div>
 							{errors.title && <p className="text-red-500 text-sm mt-1">{errors.title.message}</p>}
 						</CardContent>
 					</Card>
@@ -155,20 +195,62 @@ export function QuizEditorPage() {
 						<Card key={field.id} className="rounded-2xl shadow-lg">
 							<CardHeader className="flex flex-row items-center justify-between">
 								<CardTitle>Question {qIndex + 1}</CardTitle>
-								<Button
-									type="button"
-									variant="ghost"
-									size="icon"
-									onClick={() => remove(qIndex)}
-									className="text-red-500 hover:text-red-700"
-								>
-									<Trash2 />
-								</Button>
+								<div className="flex items-center gap-1">
+									<Button
+										type="button"
+										variant="ghost"
+										size="icon"
+										onClick={() => move(qIndex, qIndex - 1)}
+										disabled={qIndex === 0}
+										className="text-muted-foreground"
+									>
+										<ChevronUp className="h-5 w-5" />
+									</Button>
+									<Button
+										type="button"
+										variant="ghost"
+										size="icon"
+										onClick={() => move(qIndex, qIndex + 1)}
+										disabled={qIndex === fields.length - 1}
+										className="text-muted-foreground"
+									>
+										<ChevronDown className="h-5 w-5" />
+									</Button>
+									<AlertDialog>
+										<AlertDialogTrigger asChild>
+											<Button type="button" variant="ghost" size="icon" className="text-red-500 hover:text-red-700">
+												<Trash2 />
+											</Button>
+										</AlertDialogTrigger>
+										<AlertDialogContent>
+											<AlertDialogHeader>
+												<AlertDialogTitle>Delete Question {qIndex + 1}?</AlertDialogTitle>
+												<AlertDialogDescription>This will permanently remove this question and all its options.</AlertDialogDescription>
+											</AlertDialogHeader>
+											<AlertDialogFooter>
+												<AlertDialogCancel>Cancel</AlertDialogCancel>
+												<AlertDialogAction onClick={() => remove(qIndex)} className="bg-red-500 hover:bg-red-600">
+													Delete
+												</AlertDialogAction>
+											</AlertDialogFooter>
+										</AlertDialogContent>
+									</AlertDialog>
+								</div>
 							</CardHeader>
 							<CardContent className="space-y-4">
 								<div>
 									<Label>Question Text</Label>
-									<Input {...register(`questions.${qIndex}.text`)} placeholder="What is...?" maxLength={LIMITS.QUESTION_TEXT_MAX} />
+									<div className="relative">
+										<Input
+											{...register(`questions.${qIndex}.text`)}
+											placeholder="What is...?"
+											maxLength={LIMITS.QUESTION_TEXT_MAX}
+											className="pr-16"
+										/>
+										<span className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-muted-foreground pointer-events-none">
+											{watch(`questions.${qIndex}.text`)?.length || 0}/{LIMITS.QUESTION_TEXT_MAX}
+										</span>
+									</div>
 									{errors.questions?.[qIndex]?.text && (
 										<p className="text-red-500 text-sm mt-1">{errors.questions[qIndex]?.text?.message}</p>
 									)}
@@ -182,13 +264,40 @@ export function QuizEditorPage() {
 											<RadioGroup onValueChange={onChange} value={String(value)} className="space-y-2 mt-2">
 												{getValues(`questions.${qIndex}.options`).map((_, oIndex) => (
 													<div key={`${field.id}-option-${oIndex}`} className="flex items-center gap-2">
+														<div className="flex flex-col">
+															<Button
+																type="button"
+																variant="ghost"
+																size="icon"
+																className="h-5 w-5 text-muted-foreground"
+																onClick={() => moveOption(qIndex, oIndex, 'up')}
+																disabled={oIndex === 0}
+															>
+																<ChevronUp className="h-3 w-3" />
+															</Button>
+															<Button
+																type="button"
+																variant="ghost"
+																size="icon"
+																className="h-5 w-5 text-muted-foreground"
+																onClick={() => moveOption(qIndex, oIndex, 'down')}
+																disabled={oIndex === getValues(`questions.${qIndex}.options`).length - 1}
+															>
+																<ChevronDown className="h-3 w-3" />
+															</Button>
+														</div>
 														<RadioGroupItem value={String(oIndex)} id={`q${qIndex}o${oIndex}`} />
-														<Input
-															{...register(`questions.${qIndex}.options.${oIndex}`)}
-															placeholder={`Option ${oIndex + 1}`}
-															className="flex-grow"
-															maxLength={LIMITS.OPTION_TEXT_MAX}
-														/>
+														<div className="flex-grow relative">
+															<Input
+																{...register(`questions.${qIndex}.options.${oIndex}`)}
+																placeholder={`Option ${oIndex + 1}`}
+																maxLength={LIMITS.OPTION_TEXT_MAX}
+																className="pr-14"
+															/>
+															<span className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-muted-foreground pointer-events-none">
+																{watch(`questions.${qIndex}.options.${oIndex}`)?.length || 0}/{LIMITS.OPTION_TEXT_MAX}
+															</span>
+														</div>
 														{getValues(`questions.${qIndex}.options`).length > LIMITS.OPTIONS_MIN && (
 															<Button
 																type="button"

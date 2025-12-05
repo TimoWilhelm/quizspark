@@ -47,12 +47,12 @@ export function HostReveal({ onNext, questionText, options, correctAnswerIndex, 
 								animate={{ width: `${percentage}%` }}
 								transition={{ duration: 0.5, delay: 0.5 + i * 0.1 }}
 							/>
-							<div className="relative flex justify-between items-center font-bold text-lg sm:text-2xl">
-								<span className="flex items-center">
-									{option}
-									{isCorrect && <CheckCircle className="w-6 h-6 text-green-600 ml-2" />}
+							<div className="relative flex justify-between items-center gap-4 font-bold text-lg sm:text-2xl">
+								<span className="flex items-center gap-2">
+									<span>{option}</span>
+									<CheckCircle className={`w-6 h-6 flex-shrink-0 ${isCorrect ? 'text-green-600' : 'invisible'}`} />
 								</span>
-								<span>{count}</span>
+								<span className="flex-shrink-0">{count}</span>
 							</div>
 						</motion.div>
 					);

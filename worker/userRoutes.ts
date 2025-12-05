@@ -92,7 +92,7 @@ export function userRoutes(app: Hono<{ Bindings: Env }>) {
 				return c.json({ success: false, error: z.prettifyError(result.error) } satisfies ApiResponse, 400);
 			}
 			const { prompt, numQuestions } = result.data;
-			const generatedQuiz = await generateQuizFromPrompt(prompt, numQuestions);
+			const generatedQuiz = await generateQuizFromPrompt(prompt, numQuestions, c.req.raw.signal);
 			// Save the generated quiz as a custom quiz
 			const durableObjectStub = c.env.GlobalDurableObject.get(c.env.GlobalDurableObject.idFromName('global'));
 			const savedQuiz = await durableObjectStub.saveCustomQuiz({
