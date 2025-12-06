@@ -302,9 +302,8 @@ export function HomePage() {
 											>
 												<CardHeader className="pb-3">
 													<div className="flex items-start justify-between">
-														<CardTitle className="text-xl group-hover:text-quiz-orange transition-colors line-clamp-2 flex items-center gap-2">
+														<CardTitle className="text-xl group-hover:text-quiz-orange transition-colors line-clamp-2">
 															{quiz.title}
-															{startingQuizId === quiz.id && <Loader2 className="w-4 h-4 animate-spin shrink-0" />}
 														</CardTitle>
 													</div>
 												</CardHeader>
@@ -313,29 +312,35 @@ export function HomePage() {
 														<HelpCircle className="w-4 h-4" />
 														<span>{quiz.questions.length} questions</span>
 													</div>
-													<div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity mt-2">
-														<Button
-															variant="ghost"
-															size="icon"
-															className="h-7 w-7"
-															onClick={(e) => {
-																e.stopPropagation();
-																navigate(`/edit/${quiz.id}`);
-															}}
-														>
-															<Pencil className="w-3.5 h-3.5" />
-														</Button>
-														<Button
-															variant="ghost"
-															size="icon"
-															className="h-7 w-7 text-red-500 hover:text-red-700"
-															onClick={(e) => {
-																e.stopPropagation();
-																setQuizToDelete(quiz.id);
-															}}
-														>
-															<Trash2 className="w-3.5 h-3.5" />
-														</Button>
+													<div className="flex items-center justify-end gap-1 mt-2">
+														{startingQuizId === quiz.id ? (
+															<Loader2 className="w-4 h-4 animate-spin text-quiz-orange" />
+														) : (
+															<div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+																<Button
+																	variant="ghost"
+																	size="icon"
+																	className="h-7 w-7"
+																	onClick={(e) => {
+																		e.stopPropagation();
+																		navigate(`/edit/${quiz.id}`);
+																	}}
+																>
+																	<Pencil className="w-3.5 h-3.5" />
+																</Button>
+																<Button
+																	variant="ghost"
+																	size="icon"
+																	className="h-7 w-7 text-red-500 hover:text-red-700"
+																	onClick={(e) => {
+																		e.stopPropagation();
+																		setQuizToDelete(quiz.id);
+																	}}
+																>
+																	<Trash2 className="w-3.5 h-3.5" />
+																</Button>
+															</div>
+														)}
 													</div>
 												</CardContent>
 											</Card>
