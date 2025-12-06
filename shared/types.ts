@@ -33,15 +33,11 @@ export interface GameState {
 	answers: Answer[];
 	hostSecret?: string;
 }
-export interface QuizTopic {
-	id: string;
-	title: string;
-	type: 'predefined' | 'custom';
-}
 export interface Quiz {
 	id: string;
 	title: string;
 	questions: Question[];
+	type?: 'predefined' | 'custom';
 }
 
 // ============ WebSocket Message Types ============

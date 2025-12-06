@@ -1,8 +1,8 @@
 import { Hono } from 'hono';
 import { streamSSE } from 'hono/streaming';
 import { Env } from './core-utils';
-import { QUIZ_TOPICS } from './durableObject';
-import type { ApiResponse, GameState, QuizTopic, Quiz } from '@shared/types';
+import { PREDEFINED_QUIZZES } from './durableObject';
+import type { ApiResponse, GameState, Quiz } from '@shared/types';
 import { generateQuizFromPrompt, type GenerationStatus } from './ai';
 import { z } from 'zod';
 import {
@@ -35,7 +35,7 @@ export function userRoutes(app: Hono<{ Bindings: Env }>) {
 		);
 	});
 	app.get('/api/quizzes', (c) => {
-		return c.json({ success: true, data: QUIZ_TOPICS } satisfies ApiResponse<QuizTopic[]>);
+		return c.json({ success: true, data: PREDEFINED_QUIZZES } satisfies ApiResponse<Quiz[]>);
 	});
 	app.get('/api/quizzes/custom', async (c) => {
 		const durableObjectStub = c.env.GlobalDurableObject.get(c.env.GlobalDurableObject.idFromName('global'));

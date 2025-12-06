@@ -1,5 +1,5 @@
 import { DurableObject } from 'cloudflare:workers';
-import type { GameState, Question, Player, Answer, QuizTopic, Quiz, ClientMessage, ServerMessage, ClientRole } from '@shared/types';
+import type { GameState, Question, Player, Answer, Quiz, ClientMessage, ServerMessage, ClientRole } from '@shared/types';
 import { adjectives, colors, animals } from './words';
 import { z } from 'zod';
 import { wsClientMessageSchema, nicknameSchema, LIMITS } from '@shared/validation';
@@ -66,15 +66,10 @@ const GEOGRAPHY_QUIZ: Question[] = [
 		correctAnswerIndex: 2,
 	},
 ];
-const QUIZZES: Record<string, Question[]> = {
-	general: GENERAL_KNOWLEDGE_QUIZ,
-	tech: TECH_QUIZ,
-	geo: GEOGRAPHY_QUIZ,
-};
-export const QUIZ_TOPICS: QuizTopic[] = [
-	{ id: 'general', title: 'General Knowledge', type: 'predefined' },
-	{ id: 'tech', title: 'Tech Trivia', type: 'predefined' },
-	{ id: 'geo', title: 'World Geography', type: 'predefined' },
+export const PREDEFINED_QUIZZES: Quiz[] = [
+	{ id: 'general', title: 'General Knowledge', questions: GENERAL_KNOWLEDGE_QUIZ, type: 'predefined' },
+	{ id: 'tech', title: 'Tech Trivia', questions: TECH_QUIZ, type: 'predefined' },
+	{ id: 'geo', title: 'World Geography', questions: GEOGRAPHY_QUIZ, type: 'predefined' },
 ];
 const QUESTION_TIME_LIMIT_MS = 20000;
 
@@ -589,7 +584,8 @@ export class GlobalDurableObject extends DurableObject {
 			if (customQuiz) {
 				questions = customQuiz.questions;
 			} else {
-				questions = QUIZZES[quizId];
+				const predefinedQuiz = PREDEFINED_QUIZZES.find((q) => q.id === quizId);
+				questions = predefinedQuiz?.questions;
 			}
 		}
 		if (!questions) {

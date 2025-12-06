@@ -1,10 +1,15 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
   <defs>
     <linearGradient id="grad" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" style="stop-color:#EC4899;stop-opacity:1" />
-      <stop offset="100%" style="stop-color:#3B82F6;stop-opacity:1" />
+      <stop offset="0%" style="stop-color:#f48120;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#faad3f;stop-opacity:1" />
     </linearGradient>
   </defs>
-  <circle cx="50" cy="50" r="45" fill="url(#grad)"/>
-  <path d="M50 20 L53 40 L73 37 L57 50 L73 63 L53 60 L50 80 L47 60 L27 63 L43 50 L27 37 L47 40 Z" fill="white"/>
+  <rect x="5" y="5" width="90" height="90" rx="20" ry="20" fill="url(#grad)"/>
+  <!-- Main sparkle -->
+  <path d="M50 20 L53 42 L75 38 L57 50 L75 62 L53 58 L50 80 L47 58 L25 62 L43 50 L25 38 L47 42 Z" fill="white"/>
+  <!-- Small sparkle top-right -->
+  <path d="M75 15 L76 22 L83 21 L78 26 L83 31 L76 30 L75 37 L74 30 L67 31 L72 26 L67 21 L74 22 Z" fill="white" opacity="0.7"/>
+  <!-- Small sparkle bottom-left -->
+  <path d="M25 63 L26 70 L33 69 L28 74 L33 79 L26 78 L25 85 L24 78 L17 79 L22 74 L17 69 L24 70 Z" fill="white" opacity="0.5"/>
 </svg>
