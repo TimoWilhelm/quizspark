@@ -2,99 +2,143 @@
 
 [![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/TimoWilhelm/timoot)
 
-Timoot is a real-time, interactive quiz game platform for engaging audiences, inspired by Kahoot and built on Cloudflare Workers and Durable Objects.
+Real-time quiz games that bring people together. Built on Cloudflare's edge.
 
-## Description
+## What is Timoot?
 
-Timoot is designed for live events, classrooms, or social gatherings. The application is split into two primary experiences: a 'Host' view, displayed on a shared screen, and a 'Player' view on individual mobile devices. The Host controls the game's flow, starting the quiz, advancing through questions, and displaying leaderboards. Players join a specific game session using a unique game PIN or by scanning a QR code, enter a nickname, and use their device as a controller to answer questions. Scoring is based on both the correctness of the answer and the speed of response. The entire game state is managed centrally by a Cloudflare Durable Object, ensuring a single source of truth and a seamless real-time experience simulated via efficient short-polling.
+Timoot turns any gathering into an interactive quiz experience. Whether you're running a team all-hands, teaching a class, or just hanging out with friends — Timoot makes it easy to create and host live trivia.
 
-## Key Features
+**How it works:**
 
-- **Real-time Gameplay**: Engage audiences with live, interactive quizzes.
-- **Dual-Screen Experience**: Separate, synchronized views for the Host (main screen) and Players (mobile devices).
-- **Easy Joining**: Players can join games quickly using a simple Game PIN or a QR code.
-- **Dynamic Scoring**: Points are awarded for both correct answers and response speed.
-- **Centralized State Management**: Powered by a single global Cloudflare Durable Object for robust and consistent game state.
-- **Interactive UI**: A playful and responsive design built with modern web technologies.
+- **Host** throws the quiz up on a shared screen
+- **Players** join from their phones via PIN or QR code
+- **Everyone** competes in real-time with instant scoring
 
-## Technology Stack
+Every game runs on its own Durable Object, keeping state synced across all players via WebSockets. Zero lag, global scale.
 
-- **Frontend**: React, React Router, TypeScript, Tailwind CSS, shadcn/ui
-- **State Management**: Zustand
-- **Animations**: Framer Motion
-- **Backend**: Cloudflare Workers, Hono
-- **Stateful Backend**: Cloudflare Durable Objects
-- **Build Tool**: Vite
-- **Package Manager**: Bun
+## Features
+
+- **AI-Powered Quiz Generation** — Describe your topic, get a quiz instantly via Cloudflare AI Gateway
+- **Real-time Multiplayer** — WebSocket-powered gameplay with sub-second updates
+- **Two-Screen Experience** — Big screen for the host, phones for players
+- **Instant Join** — PIN code or QR scan, no app download needed
+- **Speed Scoring** — Faster correct answers = more points
+- **Quiz Editor** — Build and customize your own quizzes
+- **Edge-Native** — Runs entirely on Cloudflare Workers and Durable Objects
+
+## Tech Stack
+
+| Layer          | Tools                                      |
+| -------------- | ------------------------------------------ |
+| **Frontend**   | React, TypeScript, Tailwind CSS, shadcn/ui |
+| **State**      | Zustand, React Query                       |
+| **Animations** | Framer Motion                              |
+| **Backend**    | Cloudflare Workers, Hono                   |
+| **Realtime**   | Cloudflare Durable Objects, WebSockets     |
+| **AI**         | Cloudflare AI Gateway, Vercel AI SDK       |
+| **Tooling**    | Vite, Bun                                  |
 
 ## Getting Started
 
-Follow these instructions to get a local copy of the project up and running for development and testing purposes.
-
 ### Prerequisites
 
-- [Bun](https://bun.sh/) installed on your machine.
-- [Cloudflare Wrangler](https://developers.cloudflare.com/workers/wrangler/install-and-update/) CLI. You can install it globally via bun:
-  ```bash
-  bun install -g wrangler
-  ```
-- A Cloudflare account. Log in to your account by running:
-  ```bash
-  wrangler login
-  ```
+- [Bun](https://bun.sh/) — fast JS runtime and package manager
+- A [Cloudflare account](https://dash.cloudflare.com/sign-up) (free tier works)
 
-### Installation
+### Setup
 
-1.  **Clone the repository:**
+```bash
+# Clone the repo
+git clone https://github.com/TimoWilhelm/timoot.git
+cd timoot
 
-    ```bash
-    git clone <repository-url>
-    cd timoot
-    ```
+# Install dependencies
+bun install
 
-2.  **Install dependencies:**
-    The project uses Bun as the package manager.
-    ```bash
-    bun install
-    ```
+# Log into Cloudflare
+bunx wrangler login
+```
 
-### Running the Development Server
-
-To start the development server, which includes the Vite frontend and the local Wrangler server for the worker, run:
+### Development
 
 ```bash
 bun dev
 ```
 
-This command will:
+This fires up everything at `http://localhost:3000`:
 
-- Start the React application on `http://localhost:3000` (or another available port).
-- Start the Cloudflare Worker locally.
-- Vite is configured to proxy API requests from `/api/*` to the local worker, enabling seamless full-stack development.
+- React frontend with hot reload
+- Cloudflare Worker running locally via the Vite plugin
+- Full Durable Objects support for real-time features
+
+The `@cloudflare/vite-plugin` handles all the wiring between your frontend and worker automatically.
+
+### Environment Setup
+
+The app works out of the box for basic quiz hosting. For AI-powered quiz generation, you'll need to configure a few things.
+
+**1. Copy the example env file:**
+
+```bash
+cp .env.example .env
+```
+
+**2. Fill in your Cloudflare credentials:**
+
+| Variable                          | Where to find it                                                                                                                      |
+| --------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
+| `CLOUDFLARE_ACCOUNT_ID`           | [Dashboard](https://dash.cloudflare.com/) → right sidebar                                                                             |
+| `CLOUDFLARE_AI_GATEWAY_ID`        | [AI Gateway](https://dash.cloudflare.com/?to=/:account/ai/ai-gateway) → create or select a gateway                                    |
+| `CLOUDFLARE_AI_GATEWAY_API_TOKEN` | [API Tokens](https://dash.cloudflare.com/profile/api-tokens) → create token with AI Gateway permissions                               |
+| `CLOUDFLARE_AI_GATEWAY_MODEL`     | [Dynamic routing](https://developers.cloudflare.com/ai-gateway/features/dynamic-routing/) → create a dynamic route in your AI Gateway |
+
+**3. For production**, add these as secrets via Wrangler:
+
+```bash
+bunx wrangler secret put CLOUDFLARE_ACCOUNT_ID
+bunx wrangler secret put CLOUDFLARE_AI_GATEWAY_ID
+bunx wrangler secret put CLOUDFLARE_AI_GATEWAY_API_TOKEN
+bunx wrangler secret put CLOUDFLARE_AI_GATEWAY_MODEL
+```
+
+## AI Quiz Generation
+
+Timoot uses Cloudflare AI Gateway to generate quizzes on the fly. Describe a topic and the AI handles the rest.
+
+**How it works:**
+
+1. **Research phase** — An AI agent researches your topic, pulling from Cloudflare docs via MCP and its own knowledge base
+2. **Generation phase** — Creates quiz questions with 4 multiple-choice options each, varying in difficulty
+3. **Polish** — Questions are kept concise (<120 chars) and one question gets marked as double points
+
+**Two ways to use it:**
+
+- **Generate a full quiz** — Enter a topic prompt and get 3-10 questions instantly
+- **Add single questions** — In the Quiz Editor, generate individual questions that fit your existing quiz theme
+
+AI runs through Cloudflare's AI Gateway, giving you logging, analytics, caching, and rate limiting.
 
 ## Project Structure
 
-- `src/`: Contains the frontend React application, including pages, components, hooks, and styles.
-- `worker/`: Contains the backend Cloudflare Worker code, including the Hono API routes (`userRoutes.ts`) and the Durable Object implementation (`durableObject.ts`).
-- `shared/`: Contains TypeScript types that are shared between the frontend and the backend to ensure type safety.
-- `wrangler.jsonc`: Configuration file for the Cloudflare Worker and Durable Object bindings. **Do not modify this file.**
+```text
+src/           → React app (pages, components, hooks)
+worker/        → Cloudflare Worker (API routes, Durable Objects)
+shared/        → Shared TypeScript types
+wrangler.jsonc → Worker configuration
+```
 
-## Deployment
+## Deploy
 
-This project is configured for easy deployment to Cloudflare's global network.
+Ship it to Cloudflare's edge in one command:
 
-1.  **Build and Deploy:**
-    Run the deploy script, which will build the React application and deploy it along with the Worker to your Cloudflare account.
+```bash
+bun run deploy
+```
 
-    ```bash
-    bun run deploy
-    ```
+Or hit the button for one-click deploy:
 
-2.  **One-Click Deploy:**
-    Alternatively, you can deploy this project to Cloudflare with a single click.
-
-    [![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/TimoWilhelm/timoot)
+[![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/TimoWilhelm/timoot)
 
 ## License
 
-This project is licensed under the MIT License.
+MIT

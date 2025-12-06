@@ -33,7 +33,7 @@ const gateway = createOpenAICompatible({
 		}),
 	},
 });
-const model = gateway.chatModel('dynamic/gemini');
+const model = gateway.chatModel(`dynamic/${env.CLOUDFLARE_AI_GATEWAY_MODEL}`);
 
 // Schema for AI-generated quiz questions
 const QuestionSchema = z.object({
