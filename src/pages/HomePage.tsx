@@ -35,6 +35,8 @@ export function HomePage() {
 	const [aiPrompt, setAiPrompt] = useState('');
 	const [isGenerating, setIsGenerating] = useState(false);
 	const [isAiDialogOpen, setIsAiDialogOpen] = useState(false);
+	const [generationStatus, setGenerationStatus] = useState<{ stage: string; detail?: string } | null>(null);
+	const [generatingPrompt, setGeneratingPrompt] = useState<string | null>(null);
 	const [quizToDelete, setQuizToDelete] = useState<string | null>(null);
 	const addSecret = useHostStore((s) => s.addSecret);
 
@@ -111,34 +113,88 @@ export function HomePage() {
 		}
 	};
 
+	const getStatusMessage = (status: { stage: string; detail?: string } | null): string => {
+		if (!status) return 'Preparing...';
+		switch (status.stage) {
+			case 'researching':
+				return `Researching ${status.detail || 'topic'}...`;
+			case 'reading_docs':
+				return `Reading documentation for ${status.detail || 'topic'}...`;
+			case 'generating':
+				return 'Generating quiz questions...';
+			default:
+				return 'Processing...';
+		}
+	};
+
 	const handleGenerateAiQuiz = async () => {
 		const result = aiPromptSchema.safeParse(aiPrompt);
 		if (!result.success) {
 			toast.error(z.prettifyError(result.error));
 			return;
 		}
+
+		const prompt = aiPrompt.trim();
+		setGeneratingPrompt(prompt);
 		setIsGenerating(true);
+		setGenerationStatus(null);
+		setAiPrompt('');
+		setIsAiDialogOpen(false);
+
 		try {
 			const response = await fetch('/api/quizzes/generate', {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({ prompt: aiPrompt.trim(), numQuestions: 5 }),
+				body: JSON.stringify({ prompt, numQuestions: 5 }),
 			});
-			const result = (await response.json()) as ApiResponse<Quiz>;
-			if (result.success && result.data) {
-				toast.success(`Quiz "${result.data.title}" generated successfully!`);
-				setAiPrompt('');
-				setIsAiDialogOpen(false);
-				setSelectedQuizId(result.data.id);
-				fetchQuizzes();
-			} else {
-				throw new Error(result.error || 'Failed to generate quiz');
+
+			if (!response.ok || !response.body) {
+				throw new Error('Failed to start quiz generation');
+			}
+
+			// Parse SSE stream
+			const reader = response.body.getReader();
+			const decoder = new TextDecoder();
+			let buffer = '';
+
+			while (true) {
+				const { done, value } = await reader.read();
+				if (done) break;
+
+				buffer += decoder.decode(value, { stream: true });
+				const lines = buffer.split('\n');
+				buffer = lines.pop() || '';
+
+				let currentEvent = '';
+				for (const line of lines) {
+					if (line.startsWith('event: ')) {
+						currentEvent = line.slice(7);
+					} else if (line.startsWith('data: ')) {
+						const data = JSON.parse(line.slice(6));
+
+						if (currentEvent === 'status') {
+							setGenerationStatus(data);
+						} else if (currentEvent === 'complete') {
+							const apiResult = data as ApiResponse<Quiz>;
+							if (apiResult.success && apiResult.data) {
+								toast.success(`Quiz "${apiResult.data.title}" generated successfully!`);
+								setSelectedQuizId(apiResult.data.id);
+								fetchQuizzes();
+							}
+						} else if (currentEvent === 'error') {
+							throw new Error(data.error || 'Failed to generate quiz');
+						}
+						currentEvent = '';
+					}
+				}
 			}
 		} catch (error: any) {
 			console.error(error);
 			toast.error(error.message || 'Could not generate quiz. Please try again.');
 		} finally {
 			setIsGenerating(false);
+			setGenerationStatus(null);
+			setGeneratingPrompt(null);
 		}
 	};
 
@@ -238,6 +294,29 @@ export function HomePage() {
 										</Card>
 									</motion.div>
 								))}
+								{isGenerating && (
+									<motion.div
+										key="generating"
+										initial={{ opacity: 0, scale: 0.9 }}
+										animate={{ opacity: 1, scale: 1 }}
+										transition={{ type: 'spring', stiffness: 300, damping: 25 }}
+									>
+										<Card className="rounded-2xl border-2 border-quiz-orange/30 bg-gradient-to-br from-quiz-orange/10 to-quiz-gold/10 min-h-[95px]">
+											<CardHeader className="pb-2">
+												<CardTitle className="flex items-center gap-2 text-quiz-orange">
+													<Wand2 className="w-5 h-5 animate-pulse" />
+													<span className="truncate">{generatingPrompt}</span>
+												</CardTitle>
+											</CardHeader>
+											<div className="px-6 pb-4">
+												<div className="flex items-center gap-2 text-sm text-muted-foreground">
+													<Loader2 className="h-4 w-4 animate-spin text-quiz-orange shrink-0" />
+													<span className="truncate">{getStatusMessage(generationStatus)}</span>
+												</div>
+											</div>
+										</Card>
+									</motion.div>
+								)}
 								<motion.div
 									initial={{ opacity: 0, y: 20 }}
 									animate={{ opacity: 1, y: 0 }}
@@ -283,8 +362,7 @@ export function HomePage() {
 														placeholder="JavaScript basics, Famous artists, Holiday movies..."
 														value={aiPrompt}
 														onChange={(e) => setAiPrompt(e.target.value)}
-														onKeyDown={(e) => e.key === 'Enter' && !isGenerating && handleGenerateAiQuiz()}
-														disabled={isGenerating}
+														onKeyDown={(e) => e.key === 'Enter' && handleGenerateAiQuiz()}
 														className="col-span-3"
 														maxLength={LIMITS.AI_PROMPT_MAX}
 													/>
@@ -296,20 +374,11 @@ export function HomePage() {
 											<DialogFooter>
 												<Button
 													onClick={handleGenerateAiQuiz}
-													disabled={isGenerating || aiPrompt.trim().length < LIMITS.AI_PROMPT_MIN}
+													disabled={aiPrompt.trim().length < LIMITS.AI_PROMPT_MIN}
 													className="bg-quiz-orange hover:bg-quiz-orange/90"
 												>
-													{isGenerating ? (
-														<>
-															<Loader2 className="mr-2 h-4 w-4 animate-spin" />
-															Generating...
-														</>
-													) : (
-														<>
-															<Wand2 className="mr-2 h-4 w-4" />
-															Generate Quiz
-														</>
-													)}
+													<Wand2 className="mr-2 h-4 w-4" />
+													Generate Quiz
 												</Button>
 											</DialogFooter>
 										</DialogContent>

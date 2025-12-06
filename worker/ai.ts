@@ -49,13 +49,26 @@ const QuizSchema = z.object({
 
 export type GeneratedQuiz = z.infer<typeof QuizSchema>;
 
+export type GenerationStatus = {
+	stage: 'researching' | 'reading_docs' | 'generating';
+	detail?: string;
+};
+
+export type OnStatusUpdate = (status: GenerationStatus) => void;
+
 /**
  * Generate a quiz using AI based on a user prompt
  */
-export async function generateQuizFromPrompt(prompt: string, numQuestions: number = 5, abortSignal: AbortSignal): Promise<GeneratedQuiz> {
+export async function generateQuizFromPrompt(
+	prompt: string,
+	numQuestions: number = 5,
+	abortSignal: AbortSignal,
+	onStatusUpdate?: OnStatusUpdate,
+): Promise<GeneratedQuiz> {
+	onStatusUpdate?.({ stage: 'researching', detail: prompt });
 	const cloudflareDocsMcp = await getCloudflareDocsMCP();
 
-	const researchAgent = await createResearchAgent(model, [cloudflareDocsMcp]);
+	const researchAgent = await createResearchAgent(model, [cloudflareDocsMcp], onStatusUpdate);
 
 	const { output: researchOutput } = await researchAgent.generate({
 		messages: [
@@ -69,6 +82,8 @@ export async function generateQuizFromPrompt(prompt: string, numQuestions: numbe
 		],
 		abortSignal,
 	});
+
+	onStatusUpdate?.({ stage: 'generating', detail: 'Creating quiz questions' });
 
 	const { output: quizOutput } = await generateText({
 		model,
@@ -121,9 +136,29 @@ export async function generateQuizFromPrompt(prompt: string, numQuestions: numbe
 	return quizOutput;
 }
 
-async function createResearchAgent(model: LanguageModel, mcpServers: MCPClient[]) {
+async function createResearchAgent(model: LanguageModel, mcpServers: MCPClient[], onStatusUpdate?: OnStatusUpdate) {
 	const mcpToolSets = await Promise.all(mcpServers.flatMap((mcp) => mcp.tools()));
 	const mcpTools = Object.assign({}, ...mcpToolSets);
+
+	// Wrap tools to intercept calls and report status
+	const instrumentedTools = Object.fromEntries(
+		Object.entries(mcpTools).map(([name, tool]) => {
+			const typedTool = tool as { execute: (args: unknown, options: unknown) => Promise<unknown> };
+			return [
+				name,
+				{
+					...(tool as object),
+					execute: async (args: unknown, options: unknown) => {
+						if (name === 'search_cloudflare_documentation') {
+							const query = (args as { query?: string })?.query;
+							onStatusUpdate?.({ stage: 'reading_docs', detail: query || 'Cloudflare docs' });
+						}
+						return typedTool.execute(args, options);
+					},
+				},
+			];
+		}),
+	);
 
 	const instructions = stripIndent`
 		You are a researcher.
@@ -136,9 +171,7 @@ async function createResearchAgent(model: LanguageModel, mcpServers: MCPClient[]
 		model,
 		output: Output.text(),
 		instructions,
-		tools: {
-			...mcpTools,
-		},
+		tools: instrumentedTools as ToolSet,
 		experimental_repairToolCall: repairToolCall(model),
 		stopWhen: stepCountIs(10),
 	});

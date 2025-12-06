@@ -1,8 +1,9 @@
 import { Hono } from 'hono';
+import { streamSSE } from 'hono/streaming';
 import { Env } from './core-utils';
 import { QUIZ_TOPICS } from './durableObject';
 import type { ApiResponse, GameState, QuizTopic, Quiz } from '@shared/types';
-import { generateQuizFromPrompt } from './ai';
+import { generateQuizFromPrompt, type GenerationStatus } from './ai';
 import { z } from 'zod';
 import {
 	aiGenerateRequestSchema,
@@ -83,30 +84,45 @@ export function userRoutes(app: Hono<{ Bindings: Env }>) {
 		}
 		return c.json({ success: true });
 	});
-	// AI Quiz Generation endpoint
+	// AI Quiz Generation endpoint with SSE streaming for status updates
 	app.post('/api/quizzes/generate', async (c) => {
-		try {
-			const body = await c.req.json();
-			const result = aiGenerateRequestSchema.safeParse(body);
-			if (!result.success) {
-				return c.json({ success: false, error: z.prettifyError(result.error) } satisfies ApiResponse, 400);
-			}
-			const { prompt, numQuestions } = result.data;
-			const generatedQuiz = await generateQuizFromPrompt(prompt, numQuestions, c.req.raw.signal);
-			// Save the generated quiz as a custom quiz
-			const durableObjectStub = c.env.GlobalDurableObject.get(c.env.GlobalDurableObject.idFromName('global'));
-			const savedQuiz = await durableObjectStub.saveCustomQuiz({
-				title: generatedQuiz.title,
-				questions: generatedQuiz.questions,
-			});
-			return c.json({ success: true, data: savedQuiz } satisfies ApiResponse<Quiz>, 201);
-		} catch (error) {
-			console.error('[AI Quiz Generation Error]', error);
-			return c.json(
-				{ success: false, error: error instanceof Error ? error.message : 'Failed to generate quiz' } satisfies ApiResponse,
-				500,
-			);
+		const body = await c.req.json();
+		const result = aiGenerateRequestSchema.safeParse(body);
+		if (!result.success) {
+			return c.json({ success: false, error: z.prettifyError(result.error) } satisfies ApiResponse, 400);
 		}
+		const { prompt, numQuestions } = result.data;
+
+		return streamSSE(c, async (stream) => {
+			try {
+				const onStatusUpdate = (status: GenerationStatus) => {
+					stream.writeSSE({ event: 'status', data: JSON.stringify(status) });
+				};
+
+				const generatedQuiz = await generateQuizFromPrompt(prompt, numQuestions, c.req.raw.signal, onStatusUpdate);
+
+				// Save the generated quiz as a custom quiz
+				const durableObjectStub = c.env.GlobalDurableObject.get(c.env.GlobalDurableObject.idFromName('global'));
+				const savedQuiz = await durableObjectStub.saveCustomQuiz({
+					title: generatedQuiz.title,
+					questions: generatedQuiz.questions,
+				});
+
+				await stream.writeSSE({
+					event: 'complete',
+					data: JSON.stringify({ success: true, data: savedQuiz } satisfies ApiResponse<Quiz>),
+				});
+			} catch (error) {
+				console.error('[AI Quiz Generation Error]', error);
+				await stream.writeSSE({
+					event: 'error',
+					data: JSON.stringify({
+						success: false,
+						error: error instanceof Error ? error.message : 'Failed to generate quiz',
+					} satisfies ApiResponse),
+				});
+			}
+		});
 	});
 	app.post('/api/games', async (c) => {
 		const body = await c.req.json();
