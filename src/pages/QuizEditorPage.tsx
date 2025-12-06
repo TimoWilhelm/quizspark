@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useForm, useFieldArray, Controller, SubmitHandler } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -18,7 +18,7 @@ import {
 	AlertDialogTitle,
 	AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
-import { PlusCircle, Trash2, Loader2, Save, ArrowLeft, ChevronUp, ChevronDown } from 'lucide-react';
+import { PlusCircle, Trash2, Loader2, Save, ArrowLeft, ChevronUp, ChevronDown, Wand2 } from 'lucide-react';
 import { Toaster, toast } from 'sonner';
 import type { ApiResponse, Quiz, Question } from '@shared/types';
 import { quizFormSchema, LIMITS, type QuizFormInput } from '@shared/validation';
@@ -43,6 +43,7 @@ export function QuizEditorPage() {
 		defaultValues: { title: '', questions: [] },
 	});
 	const { fields, append, remove, update, move } = useFieldArray({ control, name: 'questions' });
+	const [isGeneratingQuestion, setIsGeneratingQuestion] = useState(false);
 	useEffect(() => {
 		if (quizId) {
 			const fetchQuiz = async () => {
@@ -102,6 +103,52 @@ export function QuizEditorPage() {
 		}
 	};
 	const addQuestion = () => append({ text: '', options: ['', ''], correctAnswerIndex: '0' });
+
+	const generateQuestion = async () => {
+		const title = getValues('title');
+		if (!title.trim()) {
+			toast.error('Please enter a quiz title first');
+			return;
+		}
+
+		const currentQuestions = getValues('questions');
+		if (currentQuestions.length >= LIMITS.QUESTIONS_MAX) {
+			toast.error(`Cannot add more than ${LIMITS.QUESTIONS_MAX} questions`);
+			return;
+		}
+
+		setIsGeneratingQuestion(true);
+		try {
+			const response = await fetch('/api/quizzes/generate-question', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({
+					title,
+					existingQuestions: currentQuestions.map((q) => ({
+						text: q.text,
+						options: q.options,
+						correctAnswerIndex: Number(q.correctAnswerIndex),
+					})),
+				}),
+			});
+
+			const result = (await response.json()) as ApiResponse<Question>;
+			if (!response.ok || !result.success || !result.data) {
+				throw new Error(result.error || 'Failed to generate question');
+			}
+
+			append({
+				text: result.data.text,
+				options: result.data.options,
+				correctAnswerIndex: String(result.data.correctAnswerIndex),
+			});
+			toast.success('Question generated!');
+		} catch (error) {
+			toast.error(error instanceof Error ? error.message : 'Failed to generate question');
+		} finally {
+			setIsGeneratingQuestion(false);
+		}
+	};
 	const addOption = (qIndex: number) => {
 		const currentQuestion = getValues(`questions.${qIndex}`);
 		if (currentQuestion.options.length < LIMITS.OPTIONS_MAX) {
@@ -327,9 +374,22 @@ export function QuizEditorPage() {
 							</CardContent>
 						</Card>
 					))}
-					<Button type="button" onClick={addQuestion} variant="secondary" size="lg" className="w-full">
-						<PlusCircle className="mr-2 h-5 w-5" /> Add Question
-					</Button>
+					<div className="flex gap-3">
+						<Button type="button" onClick={addQuestion} variant="secondary" size="lg" className="flex-1">
+							<PlusCircle className="mr-2 h-5 w-5" /> Add Question
+						</Button>
+						<Button
+							type="button"
+							onClick={generateQuestion}
+							disabled={isGeneratingQuestion}
+							variant="outline"
+							size="lg"
+							className="flex-1 border-quiz-orange/50 text-quiz-orange hover:bg-quiz-orange/10 hover:text-quiz-orange"
+						>
+							{isGeneratingQuestion ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : <Wand2 className="mr-2 h-5 w-5" />}
+							Generate with AI
+						</Button>
+					</div>
 				</form>
 			</div>
 			<Toaster richColors />

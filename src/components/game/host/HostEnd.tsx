@@ -1,12 +1,6 @@
 import { Button } from '@/components/ui/button';
 import { motion } from 'framer-motion';
-
-interface LeaderboardEntry {
-	id: string;
-	name: string;
-	score: number;
-	rank: number;
-}
+import type { LeaderboardEntry } from '@/hooks/useGameWebSocket';
 
 function PodiumPlace({ player, rank }: { player: LeaderboardEntry; rank: number }) {
 	const height = rank === 1 ? 'h-64' : rank === 2 ? 'h-48' : 'h-32';

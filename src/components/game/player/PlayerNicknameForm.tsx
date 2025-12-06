@@ -34,10 +34,10 @@ export function PlayerNicknameForm({ onJoin, isLoading }: PlayerNicknameFormProp
 		onJoin(data.nickname);
 	};
 	return (
-		<div className="min-h-screen w-full flex items-center justify-center bg-slate-50 p-4">
-			<Card className="w-full max-w-md shadow-2xl rounded-2xl animate-scale-in">
+		<div className="min-h-screen w-full flex items-center justify-center bg-slate-800 p-4">
+			<Card className="w-full max-w-md shadow-2xl rounded-2xl animate-scale-in bg-slate-700 border-slate-600">
 				<CardHeader className="text-center">
-					<CardTitle className="text-4xl font-display">Enter a Nickname</CardTitle>
+					<CardTitle className="text-4xl font-display text-white">Enter a Nickname</CardTitle>
 				</CardHeader>
 				<CardContent>
 					<form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
@@ -45,12 +45,12 @@ export function PlayerNicknameForm({ onJoin, isLoading }: PlayerNicknameFormProp
 							<Input
 								{...register('nickname')}
 								placeholder="Your cool name"
-								className="text-center text-2xl h-16"
+								className="text-center text-2xl h-16 bg-slate-600 border-slate-500 text-white placeholder:text-slate-400"
 								disabled={isLoading}
 								maxLength={LIMITS.NICKNAME_MAX}
 								autoComplete="off"
 							/>
-							{errors.nickname && <p className="text-red-500 text-sm mt-2 text-center">{errors.nickname.message}</p>}
+							{errors.nickname && <p className="text-red-400 text-sm mt-2 text-center">{errors.nickname.message}</p>}
 						</div>
 						<Button
 							type="submit"

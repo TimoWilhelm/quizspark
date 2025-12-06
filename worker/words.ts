@@ -114,3 +114,14 @@ export const animals = [
 	'Quail',
 	'Toucan',
 ];
+
+/**
+ * Generates a unique game ID in adjective-color-animal format.
+ * Example: "silly-magenta-fox"
+ */
+export function generateGameId(): string {
+	const adj = adjectives[Math.floor(Math.random() * adjectives.length)];
+	const color = colors[Math.floor(Math.random() * colors.length)];
+	const animal = animals[Math.floor(Math.random() * animals.length)];
+	return `${adj}-${color}-${animal}`.toLowerCase();
+}

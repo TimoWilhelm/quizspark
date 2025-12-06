@@ -7,6 +7,7 @@
 		"module": "ESNext",
 		"skipLibCheck": true,
 		"allowSyntheticDefaultImports": true,
+		"esModuleInterop": true,
 
 		/* Bundler mode */
 		"moduleResolution": "bundler",
@@ -25,5 +26,5 @@
 			"@shared/*": ["./shared/*"]
 		}
 	},
-	"include": ["vite.config.ts"]
+	"include": ["vite.config.ts", "tailwind.config.ts"]
 }

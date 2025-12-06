@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Sparkles, Loader2, Pencil, Trash2, PlusCircle, Wand2, BookOpen, HelpCircle, Zap } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -38,6 +38,7 @@ export function HomePage() {
 	const [generatingPrompt, setGeneratingPrompt] = useState<string | null>(null);
 	const [quizToDelete, setQuizToDelete] = useState<string | null>(null);
 	const addSecret = useHostStore((s) => s.addSecret);
+	const generatingCardRef = useRef<HTMLDivElement>(null);
 
 	const fetchQuizzes = async () => {
 		setIsLoading(true);
@@ -137,6 +138,11 @@ export function HomePage() {
 		setGenerationStatus(null);
 		setAiPrompt('');
 		setIsAiDialogOpen(false);
+
+		// Scroll to generating card after state updates
+		setTimeout(() => {
+			generatingCardRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+		}, 100);
 
 		try {
 			const response = await fetch('/api/quizzes/generate', {
@@ -316,7 +322,7 @@ export function HomePage() {
 														{startingQuizId === quiz.id ? (
 															<Loader2 className="w-4 h-4 animate-spin text-quiz-orange" />
 														) : (
-															<div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+															<div className="flex items-center gap-1 opacity-0 group-hover-always:opacity-100 transition-opacity">
 																<Button
 																	variant="ghost"
 																	size="icon"
@@ -349,12 +355,22 @@ export function HomePage() {
 									{/* AI Generating Card */}
 									{isGenerating && (
 										<motion.div
+											ref={generatingCardRef}
 											key="generating"
 											initial={{ opacity: 0, scale: 0.9 }}
-											animate={{ opacity: 1, scale: 1 }}
-											transition={{ type: 'spring', stiffness: 300, damping: 25 }}
+											animate={{
+												opacity: 1,
+												scale: 1,
+												boxShadow: ['0 0 0 0 rgba(251, 146, 60, 0)', '0 0 0 8px rgba(251, 146, 60, 0.3)', '0 0 0 0 rgba(251, 146, 60, 0)'],
+											}}
+											transition={{
+												opacity: { duration: 0.3 },
+												scale: { type: 'spring', stiffness: 300, damping: 25 },
+												boxShadow: { duration: 1.5, repeat: Infinity, ease: 'easeInOut' },
+											}}
+											className="rounded-2xl"
 										>
-											<Card className="rounded-2xl border-2 border-quiz-orange/30 bg-gradient-to-br from-quiz-orange/5 to-quiz-gold/5 h-full">
+											<Card className="rounded-2xl border-2 border-quiz-orange/50 bg-gradient-to-br from-quiz-orange/5 to-quiz-gold/5 h-full">
 												<CardHeader className="pb-3">
 													<div className="flex items-start justify-between">
 														<CardTitle className="text-xl text-quiz-orange line-clamp-2">{generatingPrompt}</CardTitle>

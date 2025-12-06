@@ -1,6 +1,5 @@
 import { DurableObject } from 'cloudflare:workers';
-import type { GameState, Question, Player, Answer, Quiz, ClientMessage, ServerMessage, ClientRole } from '@shared/types';
-import { adjectives, colors, animals } from './words';
+import type { GameState, Question, Player, Answer, ClientMessage, ServerMessage, ClientRole } from '@shared/types';
 import { z } from 'zod';
 import { wsClientMessageSchema, nicknameSchema, LIMITS } from '@shared/validation';
 
@@ -10,70 +9,23 @@ interface WebSocketAttachment {
 	playerId?: string;
 	authenticated: boolean;
 }
-const GENERAL_KNOWLEDGE_QUIZ: Question[] = [
-	{
-		text: 'What is the capital of France?',
-		options: ['Berlin', 'Madrid', 'Paris', 'Rome'],
-		correctAnswerIndex: 2,
-	},
-	{
-		text: 'Which planet is known as the Red Planet?',
-		options: ['Earth', 'Mars', 'Jupiter', 'Venus'],
-		correctAnswerIndex: 1,
-	},
-	{
-		text: 'What is the largest ocean on Earth?',
-		options: ['Atlantic', 'Indian', 'Arctic', 'Pacific'],
-		correctAnswerIndex: 3,
-	},
-	{
-		text: "Who wrote 'To Kill a Mockingbird'?",
-		options: ['Harper Lee', 'J.K. Rowling', 'Ernest Hemingway', 'Mark Twain'],
-		correctAnswerIndex: 0,
-	},
-];
-const TECH_QUIZ: Question[] = [
-	{
-		text: "What does 'CPU' stand for?",
-		options: ['Central Processing Unit', 'Computer Personal Unit', 'Central Processor Unit', 'Control Processing Unit'],
-		correctAnswerIndex: 0,
-	},
-	{
-		text: 'Which company developed the JavaScript programming language?',
-		options: ['Microsoft', 'Apple', 'Netscape', 'Sun Microsystems'],
-		correctAnswerIndex: 2,
-	},
-	{
-		text: 'What is the main function of a DNS server?',
-		options: ['To store websites', 'To resolve domain names to IP addresses', 'To send emails', 'To secure network connections'],
-		correctAnswerIndex: 1,
-	},
-];
-const GEOGRAPHY_QUIZ: Question[] = [
-	{
-		text: 'What is the longest river in the world?',
-		options: ['Amazon River', 'Nile River', 'Yangtze River', 'Mississippi River'],
-		correctAnswerIndex: 1,
-	},
-	{
-		text: 'Which desert is the largest in the world?',
-		options: ['Sahara Desert', 'Arabian Desert', 'Gobi Desert', 'Antarctic Polar Desert'],
-		correctAnswerIndex: 3,
-	},
-	{
-		text: 'What is the capital of Australia?',
-		options: ['Sydney', 'Melbourne', 'Canberra', 'Perth'],
-		correctAnswerIndex: 2,
-	},
-];
-export const PREDEFINED_QUIZZES: Quiz[] = [
-	{ id: 'general', title: 'General Knowledge', questions: GENERAL_KNOWLEDGE_QUIZ, type: 'predefined' },
-	{ id: 'tech', title: 'Tech Trivia', questions: TECH_QUIZ, type: 'predefined' },
-	{ id: 'geo', title: 'World Geography', questions: GEOGRAPHY_QUIZ, type: 'predefined' },
-];
-const QUESTION_TIME_LIMIT_MS = 20000;
 
-export class GlobalDurableObject extends DurableObject {
+const QUESTION_TIME_LIMIT_MS = 20000;
+// Cleanup delay after game ends or all disconnect (5 minutes)
+const CLEANUP_DELAY_MS = 5 * 60 * 1000;
+
+/**
+ * GameRoomDurableObject - One instance per game room
+ * Accessed via idFromName(gameId) where gameId is the unique game identifier
+ *
+ * Stores the complete game data (including questions) so the game can complete
+ * even if the source quiz is deleted.
+ *
+ * Cleanup occurs:
+ * - After the game ends (END phase)
+ * - After all WebSocket connections are closed for CLEANUP_DELAY_MS
+ */
+export class GameRoomDurableObject extends DurableObject<Env> {
 	// ============ WebSocket Hibernation API Methods ============
 
 	async fetch(request: Request): Promise<Response> {
@@ -97,6 +49,9 @@ export class GlobalDurableObject extends DurableObject {
 				role: 'player',
 				authenticated: false,
 			} as WebSocketAttachment);
+
+			// Cancel any pending cleanup alarm since we have a new connection
+			await this.ctx.storage.deleteAlarm();
 
 			return new Response(null, { status: 101, webSocket: client });
 		}
@@ -151,12 +106,32 @@ export class GlobalDurableObject extends DurableObject {
 	}
 
 	async webSocketClose(ws: WebSocket, code: number, reason: string, wasClean: boolean): Promise<void> {
-		// Clean up on disconnect - the player remains in the game state for potential reconnection
 		console.log(`WebSocket closed: code=${code}, reason=${reason}, wasClean=${wasClean}`);
+
+		// Check if all connections are closed, schedule cleanup
+		const sockets = this.ctx.getWebSockets();
+		if (sockets.length === 0) {
+			// Schedule cleanup alarm
+			await this.ctx.storage.setAlarm(Date.now() + CLEANUP_DELAY_MS);
+		}
 	}
 
 	async webSocketError(ws: WebSocket, error: unknown): Promise<void> {
 		console.error('WebSocket error:', error);
+	}
+
+	/**
+	 * Alarm handler - triggered for cleanup
+	 */
+	async alarm(): Promise<void> {
+		const sockets = this.ctx.getWebSockets();
+		const state = await this.getFullGameState();
+
+		// Only cleanup if no active connections or game has ended
+		if (sockets.length === 0 || state?.phase === 'END') {
+			console.log(`Cleaning up game room: ${state?.id || 'unknown'}`);
+			await this.ctx.storage.deleteAll();
+		}
 	}
 
 	// ============ WebSocket Message Handlers ============
@@ -187,7 +162,7 @@ export class GlobalDurableObject extends DurableObject {
 			await this.sendCurrentStateToHost(ws, state);
 		} else {
 			// Player connection
-			let playerId = data.playerId;
+			const playerId = data.playerId;
 			const existingPlayer = playerId ? state.players.find((p) => p.id === playerId) : null;
 
 			// If reconnecting with valid playerId
@@ -371,6 +346,8 @@ export class GlobalDurableObject extends DurableObject {
 					state.phase = 'END';
 					await this.ctx.storage.put('game_state', state);
 					this.broadcastGameEnd(state);
+					// Schedule cleanup after game ends
+					await this.ctx.storage.setAlarm(Date.now() + CLEANUP_DELAY_MS);
 				}
 				break;
 			default:
@@ -576,43 +553,44 @@ export class GlobalDurableObject extends DurableObject {
 		}
 	}
 
-	// ============ Original Game Logic Methods (kept for HTTP API compatibility) ============
-	async createGame(quizId?: string): Promise<GameState | { error: string }> {
-		let questions: Question[] | undefined;
-		if (quizId) {
-			const customQuiz = await this.getCustomQuizById(quizId);
-			if (customQuiz) {
-				questions = customQuiz.questions;
-			} else {
-				const predefinedQuiz = PREDEFINED_QUIZZES.find((q) => q.id === quizId);
-				questions = predefinedQuiz?.questions;
-			}
+	// ============ Game Management Methods (RPC) ============
+
+	/**
+	 * Creates a new game with the provided questions.
+	 * The questions are stored directly in the game state so the game can
+	 * complete even if the source quiz is deleted.
+	 * @param gameId - The unique game ID (adjective-color-animal format)
+	 * @param questions - The quiz questions
+	 */
+	async createGame(gameId: string, questions: Question[]): Promise<GameState | { error: string }> {
+		// Check if game already exists
+		const existingState = await this.getFullGameState();
+		if (existingState) {
+			return { error: 'Game already exists in this room' };
 		}
-		if (!questions) {
-			questions = GENERAL_KNOWLEDGE_QUIZ;
-		}
+
 		if (questions.length === 0) {
 			return { error: 'Cannot start a game with an empty quiz.' };
 		}
-		const adj = adjectives[Math.floor(Math.random() * adjectives.length)];
-		const color = colors[Math.floor(Math.random() * colors.length)];
-		const animal = animals[Math.floor(Math.random() * animals.length)];
-		const gameId = `${adj}-${color}-${animal}`.toLowerCase();
+
 		const pin = Math.floor(100000 + Math.random() * 900000).toString();
+
 		const newGame: GameState = {
 			id: gameId,
 			pin,
 			phase: 'LOBBY',
 			players: [],
-			questions: questions,
+			questions: questions, // Store full questions data
 			currentQuestionIndex: 0,
 			questionStartTime: 0,
 			answers: [],
 			hostSecret: crypto.randomUUID(),
 		};
+
 		await this.ctx.storage.put('game_state', newGame);
 		return newGame;
 	}
+
 	async getGameState(): Promise<GameState | null> {
 		const state = await this.ctx.storage.get<GameState>('game_state');
 		if (!state) return null;
@@ -620,10 +598,12 @@ export class GlobalDurableObject extends DurableObject {
 		delete publicState.hostSecret;
 		return publicState;
 	}
+
 	async getFullGameState(): Promise<GameState | null> {
 		const state = await this.ctx.storage.get<GameState>('game_state');
 		return state ?? null;
 	}
+
 	async addPlayer(name: string, playerId: string): Promise<GameState | { error: string }> {
 		// Validate nickname
 		const nicknameResult = nicknameSchema.safeParse(name);
@@ -636,56 +616,69 @@ export class GlobalDurableObject extends DurableObject {
 		if (!state || state.phase !== 'LOBBY') {
 			return { error: 'Game not in LOBBY phase or does not exist.' };
 		}
+
 		// Handle reconnection: if player already exists, just return the state
 		if (state.players.some((p) => p.id === playerId)) {
 			const gameState = await this.getGameState();
 			if (!gameState) return { error: 'Game not found.' };
 			return gameState;
 		}
+
 		if (state.players.some((p) => p.name.toLowerCase() === validatedName.toLowerCase())) {
 			return { error: 'Player name already taken.' };
 		}
+
 		const newPlayer: Player = { id: playerId, name: validatedName, score: 0, answered: false };
 		state.players.push(newPlayer);
 		await this.ctx.storage.put('game_state', state);
+
 		const gameState = await this.getGameState();
 		if (!gameState) {
 			return { error: 'Game not found.' };
 		}
 		return gameState;
 	}
+
 	async startGame(): Promise<GameState | { error: string }> {
 		const state = await this.getFullGameState();
 		if (!state || state.phase !== 'LOBBY') {
 			return { error: 'Game not in LOBBY phase.' };
 		}
+
 		state.phase = 'QUESTION';
 		state.questionStartTime = Date.now();
 		await this.ctx.storage.put('game_state', state);
+
 		const gameState = await this.getGameState();
 		if (!gameState) {
 			return { error: 'Game not found.' };
 		}
 		return gameState;
 	}
+
 	async submitAnswer(playerId: string, answerIndex: number): Promise<GameState | { error: string }> {
 		const state = await this.getFullGameState();
 		if (!state || state.phase !== 'QUESTION') {
 			return { error: 'Not in QUESTION phase.' };
 		}
+
 		const player = state.players.find((p) => p.id === playerId);
 		if (!player) {
 			return { error: 'Player not found.' };
 		}
+
 		if (state.answers.some((a) => a.playerId === playerId)) {
 			return { error: 'Player has already answered.' };
 		}
+
 		const timeTaken = Date.now() - state.questionStartTime;
 		if (timeTaken > QUESTION_TIME_LIMIT_MS) {
 			return { error: 'Time is up for this question.' };
 		}
+
 		const answer: Answer = { playerId, answerIndex, time: timeTaken };
 		state.answers.push(answer);
+
 		if (state.answers.length === state.players.length) {
 			state.phase = 'REVEAL';
 			const currentQuestion = state.questions[state.currentQuestionIndex];
@@ -704,18 +697,22 @@ export class GlobalDurableObject extends DurableObject {
 				}
 			});
 		}
+
 		await this.ctx.storage.put('game_state', state);
+
 		const gameState = await this.getGameState();
 		if (!gameState) {
 			return { error: 'Game not found.' };
 		}
 		return gameState;
 	}
+
 	async nextState(): Promise<GameState | { error: string }> {
 		const state = await this.getFullGameState();
 		if (!state) {
 			return { error: 'Game not found.' };
 		}
+
 		switch (state.phase) {
 			case 'QUESTION': {
 				const currentQuestion = state.questions[state.currentQuestionIndex];
@@ -748,51 +745,20 @@ export class GlobalDurableObject extends DurableObject {
 					state.answers = [];
 				} else {
 					state.phase = 'END';
+					// Schedule cleanup after game ends
+					await this.ctx.storage.setAlarm(Date.now() + CLEANUP_DELAY_MS);
 				}
 				break;
 			default:
 				return { error: 'Invalid state transition.' };
 		}
+
 		await this.ctx.storage.put('game_state', state);
+
 		const gameState = await this.getGameState();
 		if (!gameState) {
 			return { error: 'Game not found.' };
 		}
 		return gameState;
-	}
-	async getCustomQuizzes(): Promise<Quiz[]> {
-		return (await this.ctx.storage.get<Quiz[]>('custom_quizzes')) || [];
-	}
-	async getCustomQuizById(id: string): Promise<Quiz | null> {
-		const quizzes = await this.getCustomQuizzes();
-		return quizzes.find((q) => q.id === id) || null;
-	}
-	async saveCustomQuiz(quizData: Omit<Quiz, 'id'> & { id?: string }): Promise<Quiz> {
-		const quizzes = await this.getCustomQuizzes();
-		if (quizData.id) {
-			const index = quizzes.findIndex((q) => q.id === quizData.id);
-			if (index > -1) {
-				quizzes[index] = { ...quizzes[index], ...quizData, id: quizData.id };
-			} else {
-				const newQuiz = { ...quizData, id: crypto.randomUUID() };
-				quizzes.push(newQuiz);
-				return newQuiz;
-			}
-		} else {
-			const newQuiz = { ...quizData, id: crypto.randomUUID() };
-			quizzes.push(newQuiz);
-		}
-		await this.ctx.storage.put('custom_quizzes', quizzes);
-		return quizzes.find((q) => q.id === quizData.id)! || quizzes[quizzes.length - 1];
-	}
-	async deleteCustomQuiz(id: string): Promise<{ success: boolean }> {
-		let quizzes = await this.getCustomQuizzes();
-		const initialLength = quizzes.length;
-		quizzes = quizzes.filter((q) => q.id !== id);
-		if (quizzes.length < initialLength) {
-			await this.ctx.storage.put('custom_quizzes', quizzes);
-			return { success: true };
-		}
-		return { success: false };
 	}
 }

@@ -49,7 +49,6 @@ Cloudflare Workers + React. Single global Durable Object (DO) for all persistenc
 - `worker/index.ts` - Worker entrypoint (registers routes; do not change patterns)
 - `worker/userRoutes.ts` - Add routes here
 - `worker/durableObject.ts` - DO methods (e.g., counter, demo items)
-- `worker/core-utils.ts` - Core types/utilities (do not modify)
 
 ### Shared
 

@@ -13,7 +13,7 @@ import {
 } from 'ai';
 import { stripIndent } from 'common-tags';
 import { z } from 'zod/v4';
-import { env } from 'cloudflare:workers';
+import { env, waitUntil } from 'cloudflare:workers';
 
 export const getCloudflareDocsMCP: () => Promise<MCPClient> = async () => {
 	return await createMCPClient({
@@ -48,6 +48,7 @@ const QuizSchema = z.object({
 });
 
 export type GeneratedQuiz = z.infer<typeof QuizSchema>;
+export type GeneratedQuestion = z.infer<typeof QuestionSchema>;
 
 export type GenerationStatus = {
 	stage: 'researching' | 'reading_docs' | 'generating';
@@ -67,6 +68,7 @@ export async function generateQuizFromPrompt(
 ): Promise<GeneratedQuiz> {
 	onStatusUpdate?.({ stage: 'researching', detail: prompt });
 	const cloudflareDocsMcp = await getCloudflareDocsMCP();
+	waitUntil(cloudflareDocsMcp.close());
 
 	const researchAgent = await createResearchAgent(model, [cloudflareDocsMcp], onStatusUpdate);
 
@@ -94,9 +96,9 @@ export async function generateQuizFromPrompt(
 			{
 				role: 'system',
 				content: stripIndent`
-					You are a quiz generator.
+					You are an expert quiz maker.
 					
-					Generate exactly ${numQuestions} multiple-choice questions. Each question should:
+					Create exactly ${numQuestions} multiple-choice questions. Each question should:
 					- Have exactly 4 answer options
 					- Have one clearly correct answer
 					- Be interesting and educational
@@ -161,9 +163,9 @@ async function createResearchAgent(model: LanguageModel, mcpServers: MCPClient[]
 	);
 
 	const instructions = stripIndent`
-		You are a researcher.
+		You are a professional researcher.
 		
-		Use the tools to look up relevant information about the topic if needed.
+		Use the tools to look up information if they are relevant to the topic.
 		Generate an information-rich response based on the information you have found and your own knowledge.
 	`;
 
@@ -177,6 +179,62 @@ async function createResearchAgent(model: LanguageModel, mcpServers: MCPClient[]
 	});
 
 	return agent;
+}
+
+/**
+ * Generate a single question based on quiz title and existing questions
+ */
+export async function generateSingleQuestion(
+	title: string,
+	existingQuestions: { text: string; options: string[]; correctAnswerIndex: number }[],
+	abortSignal?: AbortSignal,
+): Promise<GeneratedQuestion> {
+	const existingContext =
+		existingQuestions.length > 0
+			? stripIndent`
+				
+				Existing questions in this quiz:
+				${existingQuestions.map((q, i) => `${i + 1}. ${q.text}\n   Options: ${q.options.map((opt, idx) => (idx === q.correctAnswerIndex ? `${opt} (correct)` : opt)).join(', ')}`).join('\n')}`
+			: '';
+
+	const { output } = await generateText({
+		model,
+		output: Output.object({
+			schema: QuestionSchema,
+		}),
+		messages: [
+			{
+				role: 'system',
+				content: stripIndent`
+					You are a quiz question generator.
+					
+					Generate exactly 1 multiple-choice question. The question should:
+					- Have exactly 4 answer options
+					- Have one clearly correct answer
+					- Be interesting and educational
+					- Be different from any existing questions provided
+					- Match the theme/topic of the quiz title
+
+					- The quiz question must be a single sentence with less than 120 characters
+					- The quiz options should be as concise as possible and must have less than 75 characters
+					- Make sure there are no full stops at the end of the sentences
+				`,
+			},
+			{
+				role: 'user',
+				content: stripIndent`
+					Create a new question for a quiz titled: "${title}"${existingContext}
+				`,
+			},
+		],
+		abortSignal,
+	});
+
+	if (!output) {
+		throw new Error('Failed to generate question - no output returned');
+	}
+
+	return output;
 }
 
 const repairToolCall: <T extends ToolSet>(model: LanguageModel) => ToolCallRepairFunction<T> =
@@ -197,13 +255,13 @@ const repairToolCall: <T extends ToolSet>(model: LanguageModel) => ToolCallRepai
 			output: Output.object({
 				schema: tool.inputSchema,
 			}),
-			prompt: [
-				`The model tried to call the tool "${toolCall.toolName}"` + ` with the following arguments:`,
-				JSON.stringify(toolCall.input),
-				`The tool accepts the following schema:`,
-				JSON.stringify(inputSchema(toolCall)),
-				'Please fix the arguments.',
-			].join('\n'),
+			prompt: stripIndent`
+				The model tried to call the tool "${toolCall.toolName}" with the following arguments:
+				${JSON.stringify(toolCall.input)}
+				The tool accepts the following schema:
+				${JSON.stringify(inputSchema(toolCall))}
+				Please fix the arguments.
+			`,
 		});
 
 		return { ...toolCall, input: JSON.stringify(output) };

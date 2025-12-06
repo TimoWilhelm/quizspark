@@ -2,6 +2,14 @@ import { useEffect, useRef, useCallback, useState } from 'react';
 import type { ClientMessage, ServerMessage, ClientRole, GamePhase } from '@shared/types';
 
 // Game state derived from WebSocket messages
+export interface LeaderboardEntry {
+	id: string;
+	name: string;
+	score: number;
+	rank: number;
+	previousRank?: number; // undefined means new to top-5
+}
+
 export interface WebSocketGameState {
 	phase: GamePhase;
 	gameId: string;
@@ -21,7 +29,7 @@ export interface WebSocketGameState {
 	playerResult: { isCorrect: boolean; score: number; answerIndex: number } | null;
 	answerCounts: number[];
 	// Leaderboard
-	leaderboard: { id: string; name: string; score: number; rank: number }[];
+	leaderboard: LeaderboardEntry[];
 	isLastQuestion: boolean;
 }
 
@@ -139,12 +147,26 @@ export function useGameWebSocket({ gameId, role, hostSecret, playerId, onError, 
 						break;
 
 					case 'leaderboard':
-						setGameState((prev) => ({
-							...prev,
-							phase: 'LEADERBOARD',
-							leaderboard: message.leaderboard,
-							isLastQuestion: message.isLastQuestion,
-						}));
+						setGameState((prev) => {
+							// Build previous ranks from old leaderboard
+							const previousRanks = new Map<string, number>();
+							prev.leaderboard.slice(0, 5).forEach((player, index) => {
+								previousRanks.set(player.id, index + 1);
+							});
+
+							// Enrich leaderboard entries with previousRank
+							const enrichedLeaderboard: LeaderboardEntry[] = message.leaderboard.map((player, index) => ({
+								...player,
+								previousRank: previousRanks.get(player.id),
+							}));
+
+							return {
+								...prev,
+								phase: 'LEADERBOARD',
+								leaderboard: enrichedLeaderboard,
+								isLastQuestion: message.isLastQuestion,
+							};
+						});
 						break;
 
 					case 'gameEnd':

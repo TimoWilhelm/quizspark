@@ -9,8 +9,9 @@ import { PlayerNicknameForm } from '@/components/game/player/PlayerNicknameForm'
 import { PlayerAnswerScreen } from '@/components/game/player/PlayerAnswerScreen';
 import { PlayerWaitingScreen } from '@/components/game/player/PlayerWaitingScreen';
 import { useSound } from '@/hooks/useSound';
+import { AnimatedNumber } from '@/hooks/useAnimatedNumber';
 
-type View = 'LOADING' | 'NICKNAME' | 'GAME' | 'GAME_IN_PROGRESS';
+type View = 'LOADING' | 'NICKNAME' | 'GAME' | 'GAME_IN_PROGRESS' | 'ROOM_NOT_FOUND';
 
 export function PlayerPage() {
 	const navigate = useNavigate();
@@ -51,12 +52,10 @@ export function PlayerPage() {
 		else if (storedPlayerId && sessionGameId && sessionGameId !== urlGameId) {
 			clearSession();
 			setCurrentPlayerId(undefined);
-			setView('NICKNAME');
+			// Stay in LOADING - handleConnected will set to NICKNAME once game is confirmed
 		}
 		// Case 3: New player or cleared session
-		else {
-			setView('NICKNAME');
-		}
+		// Stay in LOADING - handleConnected will set to NICKNAME once game is confirmed
 	}, [urlGameId, sessionGameId, storedPlayerId, nickname, navigate, clearSession]);
 
 	const handleConnected = useCallback(
@@ -70,14 +69,17 @@ export function PlayerPage() {
 					setSession({ gameId: urlGameId, playerId, nickname: nicknameToSave });
 				}
 				setView('GAME');
-			} else if (!playerId && storedPlayerId) {
-				// We tried to reconnect with a stored playerId but server didn't recognize us
-				// Clear the invalid session - user will need to rejoin
-				clearSession();
-				setCurrentPlayerId(undefined);
-				pendingNicknameRef.current = '';
-				setCurrentNickname('');
-				// Show nickname form (handleError will override to GAME_IN_PROGRESS if game started)
+			} else if (!playerId) {
+				// No playerId returned - either new player or reconnect failed
+				if (storedPlayerId) {
+					// We tried to reconnect with a stored playerId but server didn't recognize us
+					// Clear the invalid session - user will need to rejoin
+					clearSession();
+					setCurrentPlayerId(undefined);
+					pendingNicknameRef.current = '';
+					setCurrentNickname('');
+				}
+				// Game exists, show nickname form (handleError will override to GAME_IN_PROGRESS if game started)
 				setView('NICKNAME');
 			}
 		},
@@ -87,6 +89,8 @@ export function PlayerPage() {
 	const handleError = useCallback((msg: string) => {
 		if (msg === 'Game has already started') {
 			setView('GAME_IN_PROGRESS');
+		} else if (msg === 'Game not found') {
+			setView('ROOM_NOT_FOUND');
 		} else {
 			toast.error(msg);
 		}
@@ -185,6 +189,24 @@ export function PlayerPage() {
 		);
 	}
 
+	if (view === 'ROOM_NOT_FOUND') {
+		return (
+			<div className="min-h-screen w-full flex flex-col items-center justify-center bg-slate-800 text-white p-8">
+				<div className="text-6xl mb-6">🔍</div>
+				<h1 className="text-3xl font-bold mb-4 text-center">Game Not Found</h1>
+				<p className="text-lg text-slate-300 text-center max-w-md mb-8">
+					We couldn't find a game with that code. It may have ended or the link might be incorrect.
+				</p>
+				<button
+					onClick={() => navigate('/')}
+					className="px-6 py-3 bg-indigo-600 hover:bg-indigo-700 rounded-lg font-semibold transition-colors"
+				>
+					Back to Home
+				</button>
+			</div>
+		);
+	}
+
 	// Use tracked total score (updates on reveal, syncs with leaderboard when available)
 	const myScore = totalScore;
 
@@ -211,7 +233,9 @@ export function PlayerPage() {
 		<div className="min-h-screen w-full bg-slate-800 text-white flex flex-col p-4">
 			<header className="flex justify-between items-center text-2xl font-bold">
 				<span>{currentNickname}</span>
-				<span>Score: {myScore}</span>
+				<span>
+					Score: <AnimatedNumber value={myScore} />
+				</span>
 			</header>
 			<main className="flex-grow flex items-center justify-center">
 				<AnimatePresence mode="wait">{renderGameContent()}</AnimatePresence>
