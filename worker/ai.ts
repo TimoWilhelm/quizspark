@@ -40,6 +40,7 @@ const QuestionSchema = z.object({
 	text: z.string().describe('The question text'),
 	options: z.array(z.string()).length(4).describe('Exactly 4 answer options'),
 	correctAnswerIndex: z.number().min(0).max(3).describe('Index of the correct answer (0-3)'),
+	isDoublePoints: z.boolean().optional().describe('Whether this question is worth double points'),
 });
 
 const QuizSchema = z.object({
@@ -133,6 +134,12 @@ export async function generateQuizFromPrompt(
 
 	if (!quizOutput) {
 		throw new Error('Failed to generate quiz - no output returned');
+	}
+
+	// Randomly select one question to be double points
+	if (quizOutput.questions.length > 0) {
+		const doublePointsIndex = Math.floor(Math.random() * quizOutput.questions.length);
+		quizOutput.questions[doublePointsIndex].isDoublePoints = true;
 	}
 
 	return quizOutput;

@@ -89,6 +89,7 @@ export const questionSchema = z.object({
 		.min(LIMITS.OPTIONS_MIN, `A question must have at least ${LIMITS.OPTIONS_MIN} options`)
 		.max(LIMITS.OPTIONS_MAX, `A question can have at most ${LIMITS.OPTIONS_MAX} options`),
 	correctAnswerIndex: z.number().int().min(0),
+	isDoublePoints: z.boolean().optional(),
 });
 
 /**
@@ -101,6 +102,7 @@ export const questionFormSchema = z.object({
 		.min(LIMITS.OPTIONS_MIN, `A question must have at least ${LIMITS.OPTIONS_MIN} options`)
 		.max(LIMITS.OPTIONS_MAX, `A question can have at most ${LIMITS.OPTIONS_MAX} options`),
 	correctAnswerIndex: z.string().min(1, 'A correct answer must be selected'),
+	isDoublePoints: z.boolean().optional(),
 });
 
 /**

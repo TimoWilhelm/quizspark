@@ -357,6 +357,7 @@ export class GameRoomDurableObject extends DurableObject<Env> {
 
 	private async advanceToReveal(state: GameState): Promise<void> {
 		const currentQuestion = state.questions[state.currentQuestionIndex];
+		const pointMultiplier = currentQuestion.isDoublePoints ? 2 : 1;
 
 		// Calculate scores
 		state.answers.forEach((answer) => {
@@ -366,7 +367,7 @@ export class GameRoomDurableObject extends DurableObject<Env> {
 				let score = 0;
 				if (isCorrect) {
 					const timeFactor = 1 - answer.time / (QUESTION_TIME_LIMIT_MS * 2);
-					score = Math.floor(1000 * timeFactor);
+					score = Math.floor(1000 * timeFactor * pointMultiplier);
 				}
 				player.score += score;
 				answer.isCorrect = isCorrect;
@@ -466,6 +467,7 @@ export class GameRoomDurableObject extends DurableObject<Env> {
 			options: question.options,
 			startTime: state.questionStartTime,
 			timeLimitMs: QUESTION_TIME_LIMIT_MS,
+			isDoublePoints: question.isDoublePoints,
 		};
 	}
 
@@ -682,6 +684,7 @@ export class GameRoomDurableObject extends DurableObject<Env> {
 		if (state.answers.length === state.players.length) {
 			state.phase = 'REVEAL';
 			const currentQuestion = state.questions[state.currentQuestionIndex];
+			const pointMultiplier = currentQuestion.isDoublePoints ? 2 : 1;
 			state.answers.forEach((ans) => {
 				const p = state.players.find((p) => p.id === ans.playerId);
 				if (p) {
@@ -689,7 +692,7 @@ export class GameRoomDurableObject extends DurableObject<Env> {
 					let score = 0;
 					if (isCorrect) {
 						const timeFactor = 1 - ans.time / (QUESTION_TIME_LIMIT_MS * 2);
-						score = Math.floor(1000 * timeFactor);
+						score = Math.floor(1000 * timeFactor * pointMultiplier);
 					}
 					p.score += score;
 					ans.isCorrect = isCorrect;
@@ -716,6 +719,7 @@ export class GameRoomDurableObject extends DurableObject<Env> {
 		switch (state.phase) {
 			case 'QUESTION': {
 				const currentQuestion = state.questions[state.currentQuestionIndex];
+				const pointMultiplier = currentQuestion.isDoublePoints ? 2 : 1;
 				state.answers.forEach((answer) => {
 					const player = state.players.find((p) => p.id === answer.playerId);
 					if (player) {
@@ -723,7 +727,7 @@ export class GameRoomDurableObject extends DurableObject<Env> {
 						let score = 0;
 						if (isCorrect) {
 							const timeFactor = 1 - answer.time / (QUESTION_TIME_LIMIT_MS * 2);
-							score = Math.floor(1000 * timeFactor);
+							score = Math.floor(1000 * timeFactor * pointMultiplier);
 						}
 						player.score += score;
 						answer.isCorrect = isCorrect;

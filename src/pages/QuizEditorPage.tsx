@@ -18,15 +18,18 @@ import {
 	AlertDialogTitle,
 	AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
-import { PlusCircle, Trash2, Loader2, Save, ArrowLeft, ChevronUp, ChevronDown, Wand2 } from 'lucide-react';
+import { PlusCircle, Trash2, Loader2, Save, ArrowLeft, ChevronUp, ChevronDown, Wand2, Zap } from 'lucide-react';
 import { Toaster, toast } from 'sonner';
 import type { ApiResponse, Quiz, Question } from '@shared/types';
 import { quizFormSchema, LIMITS, type QuizFormInput } from '@shared/validation';
+import { Checkbox } from '@/components/ui/checkbox';
 
 type QuizFormData = {
 	title: string;
 	questions: Question[];
 };
+
+type QuestionFormInput = QuizFormInput['questions'][number];
 export function QuizEditorPage() {
 	const { quizId } = useParams<{ quizId?: string }>();
 	const navigate = useNavigate();
@@ -69,7 +72,7 @@ export function QuizEditorPage() {
 			};
 			fetchQuiz();
 		} else {
-			reset({ title: '', questions: [{ text: '', options: ['', ''], correctAnswerIndex: '0' }] });
+			reset({ title: '', questions: [{ text: '', options: ['', ''], correctAnswerIndex: '0', isDoublePoints: false }] });
 		}
 	}, [quizId, reset, navigate]);
 	const onSubmit: SubmitHandler<QuizFormInput> = async (data) => {
@@ -77,8 +80,10 @@ export function QuizEditorPage() {
 			const processedData: QuizFormData = {
 				...data,
 				questions: data.questions.map((q) => ({
-					...q,
+					text: q.text,
+					options: q.options,
 					correctAnswerIndex: parseInt(q.correctAnswerIndex, 10),
+					isDoublePoints: q.isDoublePoints,
 				})),
 			};
 			const url = quizId ? `/api/quizzes/custom/${quizId}` : '/api/quizzes/custom';
@@ -102,7 +107,7 @@ export function QuizEditorPage() {
 			}
 		}
 	};
-	const addQuestion = () => append({ text: '', options: ['', ''], correctAnswerIndex: '0' });
+	const addQuestion = () => append({ text: '', options: ['', ''], correctAnswerIndex: '0', isDoublePoints: false });
 
 	const generateQuestion = async () => {
 		const title = getValues('title');
@@ -141,6 +146,7 @@ export function QuizEditorPage() {
 				text: result.data.text,
 				options: result.data.options,
 				correctAnswerIndex: String(result.data.correctAnswerIndex),
+				isDoublePoints: false,
 			});
 			toast.success('Question generated!');
 		} catch (error) {
@@ -242,46 +248,66 @@ export function QuizEditorPage() {
 						<Card key={field.id} className="rounded-2xl shadow-lg">
 							<CardHeader className="flex flex-row items-center justify-between">
 								<CardTitle>Question {qIndex + 1}</CardTitle>
-								<div className="flex items-center gap-1">
-									<Button
-										type="button"
-										variant="ghost"
-										size="icon"
-										onClick={() => move(qIndex, qIndex - 1)}
-										disabled={qIndex === 0}
-										className="text-muted-foreground"
-									>
-										<ChevronUp className="h-5 w-5" />
-									</Button>
-									<Button
-										type="button"
-										variant="ghost"
-										size="icon"
-										onClick={() => move(qIndex, qIndex + 1)}
-										disabled={qIndex === fields.length - 1}
-										className="text-muted-foreground"
-									>
-										<ChevronDown className="h-5 w-5" />
-									</Button>
-									<AlertDialog>
-										<AlertDialogTrigger asChild>
-											<Button type="button" variant="ghost" size="icon" className="text-red-500 hover:text-red-700">
-												<Trash2 />
-											</Button>
-										</AlertDialogTrigger>
-										<AlertDialogContent>
-											<AlertDialogHeader>
-												<AlertDialogTitle>Delete Question {qIndex + 1}?</AlertDialogTitle>
-												<AlertDialogDescription>This will permanently remove this question and all its options.</AlertDialogDescription>
-											</AlertDialogHeader>
-											<AlertDialogFooter>
-												<AlertDialogCancel>Cancel</AlertDialogCancel>
-												<AlertDialogAction onClick={() => remove(qIndex)} className="bg-red-500 hover:bg-red-600">
-													Delete
-												</AlertDialogAction>
-											</AlertDialogFooter>
-										</AlertDialogContent>
-									</AlertDialog>
+								<div className="flex items-center gap-2">
+									<Controller
+										control={control}
+										name={`questions.${qIndex}.isDoublePoints`}
+										render={({ field }) => (
+											<button
+												type="button"
+												onClick={() => field.onChange(!field.value)}
+												className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-semibold transition-all ${
+													field.value
+														? 'bg-gradient-to-r from-quiz-orange to-amber-500 text-white shadow-md'
+														: 'bg-muted text-muted-foreground hover:bg-muted/80'
+												}`}
+											>
+												<Zap className={`h-4 w-4 ${field.value ? 'fill-current' : ''}`} />
+												2× Points
+											</button>
+										)}
+									/>
+									<div className="flex items-center gap-1 border-l pl-2 ml-1">
+										<Button
+											type="button"
+											variant="ghost"
+											size="icon"
+											onClick={() => move(qIndex, qIndex - 1)}
+											disabled={qIndex === 0}
+											className="text-muted-foreground"
+										>
+											<ChevronUp className="h-5 w-5" />
+										</Button>
+										<Button
+											type="button"
+											variant="ghost"
+											size="icon"
+											onClick={() => move(qIndex, qIndex + 1)}
+											disabled={qIndex === fields.length - 1}
+											className="text-muted-foreground"
+										>
+											<ChevronDown className="h-5 w-5" />
+										</Button>
+										<AlertDialog>
+											<AlertDialogTrigger asChild>
+												<Button type="button" variant="ghost" size="icon" className="text-red-500 hover:text-red-700">
+													<Trash2 />
+												</Button>
+											</AlertDialogTrigger>
+											<AlertDialogContent>
+												<AlertDialogHeader>
+													<AlertDialogTitle>Delete Question {qIndex + 1}?</AlertDialogTitle>
+													<AlertDialogDescription>This will permanently remove this question and all its options.</AlertDialogDescription>
+												</AlertDialogHeader>
+												<AlertDialogFooter>
+													<AlertDialogCancel>Cancel</AlertDialogCancel>
+													<AlertDialogAction onClick={() => remove(qIndex)} className="bg-red-500 hover:bg-red-600">
+														Delete
+													</AlertDialogAction>
+												</AlertDialogFooter>
+											</AlertDialogContent>
+										</AlertDialog>
+									</div>
 								</div>
 							</CardHeader>
 							<CardContent className="space-y-4">

@@ -60,6 +60,7 @@ export function HostPage() {
 						timeLimitMs={gameState.timeLimitMs}
 						answeredCount={gameState.answeredCount}
 						totalPlayers={gameState.players.length}
+						isDoublePoints={gameState.isDoublePoints}
 					/>
 				);
 			case 'REVEAL':

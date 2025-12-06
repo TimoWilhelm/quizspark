@@ -15,6 +15,7 @@ export const GENERAL_KNOWLEDGE_QUIZ: Question[] = [
 		text: 'What is the largest ocean on Earth?',
 		options: ['Atlantic', 'Indian', 'Arctic', 'Pacific'],
 		correctAnswerIndex: 3,
+		isDoublePoints: true,
 	},
 	{
 		text: "Who wrote 'To Kill a Mockingbird'?",
@@ -38,6 +39,7 @@ const TECH_QUIZ: Question[] = [
 		text: 'What is the main function of a DNS server?',
 		options: ['To store websites', 'To resolve domain names to IP addresses', 'To send emails', 'To secure network connections'],
 		correctAnswerIndex: 1,
+		isDoublePoints: true,
 	},
 ];
 
@@ -56,6 +58,7 @@ const GEOGRAPHY_QUIZ: Question[] = [
 		text: 'What is the capital of Australia?',
 		options: ['Sydney', 'Melbourne', 'Canberra', 'Perth'],
 		correctAnswerIndex: 2,
+		isDoublePoints: true,
 	},
 ];
 

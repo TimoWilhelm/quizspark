@@ -1,5 +1,6 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { Zap } from 'lucide-react';
 
 // Colorblind-safe palette - vibrant yet readable
 const shapeColors = [
@@ -139,6 +140,138 @@ function CountdownTimer({ timeLeft, totalTime }: CountdownTimerProps) {
 	);
 }
 
+// Double Points Animation Component
+function DoublePointsAnimation({ onComplete }: { onComplete: () => void }) {
+	useEffect(() => {
+		const timer = setTimeout(onComplete, 2500);
+		return () => clearTimeout(timer);
+	}, [onComplete]);
+
+	return (
+		<motion.div
+			className="fixed inset-0 z-50 flex items-center justify-center bg-gradient-to-br from-quiz-orange/90 to-amber-600/90"
+			initial={{ opacity: 0 }}
+			animate={{ opacity: 1 }}
+			exit={{ opacity: 0 }}
+			transition={{ duration: 0.3 }}
+		>
+			{/* Background pulse rings */}
+			{[...Array(3)].map((_, i) => (
+				<motion.div
+					key={i}
+					className="absolute rounded-full border-4 border-white/30"
+					initial={{ width: 100, height: 100, opacity: 0.8 }}
+					animate={{
+						width: [100, 600],
+						height: [100, 600],
+						opacity: [0.8, 0],
+					}}
+					transition={{
+						duration: 1.5,
+						delay: i * 0.3,
+						repeat: Infinity,
+						ease: 'easeOut',
+					}}
+				/>
+			))}
+
+			{/* Lightning bolts */}
+			{[...Array(8)].map((_, i) => (
+				<motion.div
+					key={`bolt-${i}`}
+					className="absolute"
+					style={{
+						transform: `rotate(${i * 45}deg) translateY(-150px)`,
+					}}
+					initial={{ opacity: 0, scale: 0 }}
+					animate={{
+						opacity: [0, 1, 0],
+						scale: [0.5, 1.2, 0.8],
+					}}
+					transition={{
+						duration: 0.6,
+						delay: 0.5 + i * 0.08,
+						repeat: 2,
+					}}
+				>
+					<Zap className="w-12 h-12 text-yellow-300 fill-yellow-300" />
+				</motion.div>
+			))}
+
+			{/* Main 2x text */}
+			<motion.div
+				className="relative flex flex-col items-center"
+				initial={{ scale: 0, rotate: -180 }}
+				animate={{ scale: 1, rotate: 0 }}
+				transition={{
+					type: 'spring',
+					stiffness: 200,
+					damping: 15,
+					delay: 0.2,
+				}}
+			>
+				<motion.div
+					className="text-[12rem] font-black text-white drop-shadow-2xl leading-none"
+					animate={{
+						scale: [1, 1.1, 1],
+						textShadow: ['0 0 20px rgba(255,255,255,0.5)', '0 0 60px rgba(255,255,255,0.8)', '0 0 20px rgba(255,255,255,0.5)'],
+					}}
+					transition={{ duration: 0.5, repeat: Infinity }}
+				>
+					2×
+				</motion.div>
+				<motion.div
+					className="text-4xl font-bold text-white/90 uppercase tracking-widest"
+					initial={{ opacity: 0, y: 20 }}
+					animate={{ opacity: 1, y: 0 }}
+					transition={{ delay: 0.6 }}
+				>
+					Double Points!
+				</motion.div>
+			</motion.div>
+
+			{/* Sparkle particles */}
+			{[...Array(20)].map((_, i) => (
+				<motion.div
+					key={`sparkle-${i}`}
+					className="absolute w-2 h-2 bg-yellow-200 rounded-full"
+					style={{
+						left: `${Math.random() * 100}%`,
+						top: `${Math.random() * 100}%`,
+					}}
+					initial={{ opacity: 0, scale: 0 }}
+					animate={{
+						opacity: [0, 1, 0],
+						scale: [0, 1.5, 0],
+					}}
+					transition={{
+						duration: 1,
+						delay: Math.random() * 2,
+						repeat: Infinity,
+					}}
+				/>
+			))}
+		</motion.div>
+	);
+}
+
+// 2x Badge component for during the question
+function DoublePointsBadge() {
+	return (
+		<motion.div
+			initial={{ scale: 0, rotate: -12 }}
+			animate={{ scale: 1, rotate: -12 }}
+			transition={{ type: 'spring', stiffness: 300, damping: 20 }}
+			className="absolute -top-2 -right-2 bg-gradient-to-r from-quiz-orange to-amber-500 text-white px-3 py-1 rounded-full shadow-lg flex items-center gap-1 z-10"
+		>
+			<motion.div animate={{ rotate: [0, 15, -15, 0] }} transition={{ duration: 0.5, repeat: Infinity, repeatDelay: 2 }}>
+				<Zap className="w-5 h-5 fill-current" />
+			</motion.div>
+			<span className="font-bold text-lg">2×</span>
+		</motion.div>
+	);
+}
+
 interface HostQuestionProps {
 	onNext: () => void;
 	questionText: string;
@@ -149,6 +282,7 @@ interface HostQuestionProps {
 	timeLimitMs: number;
 	answeredCount: number;
 	totalPlayers: number;
+	isDoublePoints?: boolean;
 }
 
 export function HostQuestion({
@@ -161,11 +295,16 @@ export function HostQuestion({
 	timeLimitMs,
 	answeredCount,
 	totalPlayers,
+	isDoublePoints,
 }: HostQuestionProps) {
 	const timeLimitSec = timeLimitMs / 1000;
-	const [timeLeft, setTimeLeft] = React.useState(timeLimitSec);
+	const [timeLeft, setTimeLeft] = useState(timeLimitSec);
+	const [showDoublePointsAnimation, setShowDoublePointsAnimation] = useState(isDoublePoints ?? false);
 
-	React.useEffect(() => {
+	useEffect(() => {
+		// Don't start timer until animation is done
+		if (showDoublePointsAnimation) return;
+
 		const timer = setInterval(() => {
 			const elapsedMs = Date.now() - startTime;
 			const elapsedSeconds = Math.floor(elapsedMs / 1000);
@@ -177,7 +316,12 @@ export function HostQuestion({
 			}
 		}, 100);
 		return () => clearInterval(timer);
-	}, [startTime, timeLimitSec, timeLimitMs, onNext]);
+	}, [startTime, timeLimitSec, timeLimitMs, onNext, showDoublePointsAnimation]);
+	// Show fullscreen animation for 2x questions
+	if (showDoublePointsAnimation) {
+		return <DoublePointsAnimation onComplete={() => setShowDoublePointsAnimation(false)} />;
+	}
+
 	return (
 		<div className="flex-grow flex flex-col p-4 sm:p-8">
 			<div className="flex justify-between items-center mb-4">
@@ -191,7 +335,8 @@ export function HostQuestion({
 				</div>
 				<CountdownTimer timeLeft={timeLeft} totalTime={timeLimitSec} />
 			</div>
-			<div className="flex-grow center bg-white rounded-2xl shadow-lg p-4 sm:p-8 mb-4 sm:mb-8">
+			<div className="relative flex-grow center bg-white rounded-2xl shadow-lg p-4 sm:p-8 mb-4 sm:mb-8">
+				{isDoublePoints && <DoublePointsBadge />}
 				<h2 className="text-3xl sm:text-5xl font-bold text-center">{questionText}</h2>
 			</div>
 			<div className="grid grid-cols-1 md:grid-cols-2 gap-2 sm:gap-4">

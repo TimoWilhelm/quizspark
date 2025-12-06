@@ -1,5 +1,6 @@
 import { motion, AnimatePresence } from 'framer-motion';
 import { useState, useEffect } from 'react';
+import { Zap } from 'lucide-react';
 
 // Colorblind-safe palette - vibrant yet readable (safe for deuteranopia, protanopia, tritanopia)
 const shapeGradients = [
@@ -18,14 +19,106 @@ const shapePaths = [
 
 const glowColors = ['#F59E0B', '#3B82F6', '#14B8A6', '#EC4899'];
 
+// Compact 2x animation for player screen
+function PlayerDoublePointsAnimation({ onComplete }: { onComplete: () => void }) {
+	useEffect(() => {
+		const timer = setTimeout(onComplete, 2500);
+		return () => clearTimeout(timer);
+	}, [onComplete]);
+
+	return (
+		<motion.div
+			className="absolute inset-0 z-50 flex items-center justify-center bg-gradient-to-br from-quiz-orange/95 to-amber-600/95 rounded-2xl"
+			initial={{ opacity: 0, scale: 0.9 }}
+			animate={{ opacity: 1, scale: 1 }}
+			exit={{ opacity: 0, scale: 1.1 }}
+			transition={{ duration: 0.3 }}
+		>
+			{/* Pulse rings */}
+			{[...Array(3)].map((_, i) => (
+				<motion.div
+					key={i}
+					className="absolute rounded-full border-2 border-white/30"
+					initial={{ width: 50, height: 50, opacity: 0.8 }}
+					animate={{
+						width: [50, 300],
+						height: [50, 300],
+						opacity: [0.8, 0],
+					}}
+					transition={{
+						duration: 1.2,
+						delay: i * 0.25,
+						repeat: Infinity,
+						ease: 'easeOut',
+					}}
+				/>
+			))}
+
+			{/* Lightning bolts */}
+			{[...Array(6)].map((_, i) => (
+				<motion.div
+					key={`bolt-${i}`}
+					className="absolute"
+					style={{
+						transform: `rotate(${i * 60}deg) translateY(-80px)`,
+					}}
+					initial={{ opacity: 0, scale: 0 }}
+					animate={{
+						opacity: [0, 1, 0],
+						scale: [0.5, 1, 0.8],
+					}}
+					transition={{
+						duration: 0.5,
+						delay: 0.4 + i * 0.06,
+						repeat: 2,
+					}}
+				>
+					<Zap className="w-8 h-8 text-yellow-300 fill-yellow-300" />
+				</motion.div>
+			))}
+
+			{/* Main content */}
+			<motion.div
+				className="relative flex flex-col items-center"
+				initial={{ scale: 0, rotate: -180 }}
+				animate={{ scale: 1, rotate: 0 }}
+				transition={{
+					type: 'spring',
+					stiffness: 200,
+					damping: 15,
+					delay: 0.15,
+				}}
+			>
+				<motion.div
+					className="text-8xl font-black text-white drop-shadow-xl leading-none"
+					animate={{ scale: [1, 1.1, 1] }}
+					transition={{ duration: 0.5, repeat: Infinity }}
+				>
+					2×
+				</motion.div>
+				<motion.div
+					className="text-xl font-bold text-white/90 uppercase tracking-wider mt-2"
+					initial={{ opacity: 0, y: 10 }}
+					animate={{ opacity: 1, y: 0 }}
+					transition={{ delay: 0.5 }}
+				>
+					Double Points!
+				</motion.div>
+			</motion.div>
+		</motion.div>
+	);
+}
+
 interface PlayerAnswerScreenProps {
 	onAnswer: (index: number) => void;
 	submittedAnswer: number | null;
 	optionIndices: number[];
+	isDoublePoints?: boolean;
 }
 
-export function PlayerAnswerScreen({ onAnswer, submittedAnswer, optionIndices }: PlayerAnswerScreenProps) {
+export function PlayerAnswerScreen({ onAnswer, submittedAnswer, optionIndices, isDoublePoints }: PlayerAnswerScreenProps) {
 	const [showPulse, setShowPulse] = useState(false);
+	const [showDoublePointsAnimation, setShowDoublePointsAnimation] = useState(isDoublePoints ?? false);
 
 	// Trigger pulse animation after selection
 	useEffect(() => {
@@ -46,8 +139,16 @@ export function PlayerAnswerScreen({ onAnswer, submittedAnswer, optionIndices }:
 		};
 	};
 
+	// Don't allow answering while animation is playing
+	const canAnswer = !showDoublePointsAnimation && submittedAnswer === null;
+
 	return (
 		<div className="w-[calc(100vw-2rem)] h-[calc(100vh-10rem)] max-w-2xl max-h-[500px] relative overflow-hidden">
+			{/* 2x Points animation overlay */}
+			<AnimatePresence>
+				{showDoublePointsAnimation && <PlayerDoublePointsAnimation onComplete={() => setShowDoublePointsAnimation(false)} />}
+			</AnimatePresence>
+
 			{/* Background glow effect when selected */}
 			<AnimatePresence>
 				{submittedAnswer !== null && (
@@ -76,8 +177,8 @@ export function PlayerAnswerScreen({ onAnswer, submittedAnswer, optionIndices }:
 				return (
 					<motion.button
 						key={originalIndex}
-						onClick={() => submittedAnswer === null && onAnswer(originalIndex)}
-						disabled={submittedAnswer !== null}
+						onClick={() => canAnswer && onAnswer(originalIndex)}
+						disabled={!canAnswer}
 						initial={{ opacity: 0, scale: 0.8 }}
 						animate={
 							isSelected
@@ -110,14 +211,14 @@ export function PlayerAnswerScreen({ onAnswer, submittedAnswer, optionIndices }:
 										}
 						}
 						whileHover={
-							submittedAnswer === null
+							canAnswer
 								? {
 										scale: 1.03,
 										boxShadow: '0 25px 50px rgba(0,0,0,0.4)',
 									}
 								: {}
 						}
-						whileTap={submittedAnswer === null ? { scale: 0.97 } : {}}
+						whileTap={canAnswer ? { scale: 0.97 } : {}}
 						transition={
 							isSelected
 								? {
@@ -210,7 +311,7 @@ export function PlayerAnswerScreen({ onAnswer, submittedAnswer, optionIndices }:
 						</motion.svg>
 
 						{/* Shimmer effect on hover */}
-						{submittedAnswer === null && (
+						{canAnswer && (
 							<motion.div
 								className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -skew-x-12"
 								initial={{ x: '-200%' }}

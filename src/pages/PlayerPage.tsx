@@ -215,7 +215,14 @@ export function PlayerPage() {
 
 		if (gameState.phase === 'QUESTION' && gameState.options.length > 0) {
 			const optionIndices = Array.from({ length: gameState.options.length }, (_, i) => i);
-			return <PlayerAnswerScreen onAnswer={handleAnswer} submittedAnswer={submittedAnswer} optionIndices={optionIndices} />;
+			return (
+				<PlayerAnswerScreen
+					onAnswer={handleAnswer}
+					submittedAnswer={submittedAnswer}
+					optionIndices={optionIndices}
+					isDoublePoints={gameState.isDoublePoints}
+				/>
+			);
 		}
 
 		return (

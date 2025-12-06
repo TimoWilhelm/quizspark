@@ -22,6 +22,7 @@ export interface WebSocketGameState {
 	options: string[];
 	startTime: number;
 	timeLimitMs: number;
+	isDoublePoints: boolean;
 	// Answer tracking (for host)
 	answeredCount: number;
 	// Reveal phase
@@ -54,6 +55,7 @@ const initialGameState: WebSocketGameState = {
 	options: [],
 	startTime: 0,
 	timeLimitMs: 20000,
+	isDoublePoints: false,
 	answeredCount: 0,
 	correctAnswerIndex: null,
 	playerResult: null,
@@ -118,6 +120,7 @@ export function useGameWebSocket({ gameId, role, hostSecret, playerId, onError, 
 							options: message.options,
 							startTime: message.startTime,
 							timeLimitMs: message.timeLimitMs,
+							isDoublePoints: message.isDoublePoints ?? false,
 							answeredCount: 0,
 							correctAnswerIndex: null,
 							playerResult: null,

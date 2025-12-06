@@ -7,6 +7,7 @@ export interface Question {
 	text: string;
 	options: string[];
 	correctAnswerIndex: number;
+	isDoublePoints?: boolean;
 }
 export interface Player {
 	id: string;
@@ -66,6 +67,7 @@ export type ServerMessage =
 			options: string[];
 			startTime: number;
 			timeLimitMs: number;
+			isDoublePoints?: boolean;
 	  }
 	| { type: 'answerReceived'; answerIndex: number }
 	| { type: 'playerAnswered'; playerId: string; answeredCount: number; totalPlayers: number }
